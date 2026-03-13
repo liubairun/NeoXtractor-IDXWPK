@@ -6,10 +6,6 @@ from typing import Any
 
 import numpy as np
 
-MAX_VERTEX_COUNT = 500000
-MAX_FACE_COUNT = 250000
-MAX_BONE_COUNT = 2000
-
 @dataclass
 class MeshData:
     """
@@ -188,46 +184,3 @@ class BaseMeshParser(ABC):
                 mesh_data.vertex_weight.extend([[1.0, 0.0, 0.0, 0.0]] * (vertex_count - len(mesh_data.vertex_weight)))
 
         return mesh_data
-
-    def _validate_vertex_count(self, vertex_count: int) -> None:
-        """
-        Validate vertex count against maximum limits.
-        
-        Args:
-            vertex_count: Number of vertices in the mesh
-            
-        Raises:
-            ValueError: If vertex count exceeds maximum limit
-        """
-        if vertex_count == 0:
-            raise ValueError("Vertex count cannot be zero")
-        if vertex_count > MAX_VERTEX_COUNT:
-            raise ValueError(f"Vertex count {vertex_count} exceeds maximum limit of {MAX_VERTEX_COUNT}")
-
-    def _validate_face_count(self, face_count: int) -> None:
-        """
-        Validate face count against maximum limits.
-        
-        Args:
-            face_count: Number of faces in the mesh
-            
-        Raises:
-            ValueError: If face count exceeds maximum limit
-        """
-        if face_count == 0:
-            raise ValueError("Face count cannot be zero")
-        if face_count > MAX_FACE_COUNT:
-            raise ValueError(f"Face count {face_count} exceeds maximum limit of {MAX_FACE_COUNT}")
-
-    def _validate_bone_count(self, bone_count: int) -> None:
-        """
-        Validate bone count against maximum limits.
-        
-        Args:
-            bone_count: Number of bones in the mesh
-            
-        Raises:
-            ValueError: If bone count exceeds maximum limit
-        """
-        if bone_count > MAX_BONE_COUNT:
-            raise ValueError(f"Bone count {bone_count} exceeds maximum limit of {MAX_BONE_COUNT}")

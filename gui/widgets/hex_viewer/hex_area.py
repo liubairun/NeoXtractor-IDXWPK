@@ -222,9 +222,7 @@ class HexArea(QtWidgets.QWidget):
     def _measure_font_metrics(self):
         """Measure font metrics for the current font."""
         self._font_metrics = QtGui.QFontMetrics(self.font())
-        # Find the widest character among 0-9, A-F, and 'Address' letters
-        chars = "0123456789ABCDEFdres"
-        self._char_width = max(self._font_metrics.horizontalAdvance(c) for c in chars)
+        self._char_width = self._font_metrics.horizontalAdvance("0")
         self._char_height = self._font_metrics.height()
 
     def _calculate_address_width(self) -> int:
@@ -396,7 +394,7 @@ class HexArea(QtWidgets.QWidget):
                 byte_text = f"{byte_val:02X}"
                 painter.drawText(byte_rect, QtCore.Qt.AlignmentFlag.AlignCenter, byte_text)
 
-            ascii_x = hex_x + hex_width + (self._bytes_per_line // self._bytes_per_group - 1) * self._char_width + 15
+            ascii_x = hex_x + hex_width + x_offset + 15
 
             # Draw ASCII representation
             if self._show_ascii:

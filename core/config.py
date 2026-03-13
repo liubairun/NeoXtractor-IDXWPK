@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import json
 from typing import Any
 
-from core.npk.class_types import NPKReadOptions
+from core.archive.class_types import NPKReadOptions
 
 @dataclass
 class Config:

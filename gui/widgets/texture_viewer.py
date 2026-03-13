@@ -5,12 +5,10 @@ from PySide6 import QtCore, QtWidgets, QtGui
 from PIL import Image, ImageFile
 import numpy as np
 
-from core.file import IFile
 from core.images import convert_image, image_to_png_data
 from gui.widgets.tab_window_ui.texture_viewer import setup_texture_viewer_tab_window
-from gui.widgets.viewer import ICustomTabWindow, Viewer
 
-QT_SUPPORTED_FORMATS = set(fmt.toStdString().lower() for fmt in QtGui.QImageReader.supportedImageFormats())
+QT_SUPPORTED_FORMATS = list(fmt.toStdString().lower() for fmt in QtGui.QImageReader.supportedImageFormats())
 
 class ImageDecodeTaskSignals(QtCore.QObject):
     """Signals for the image decode task."""
@@ -56,17 +54,16 @@ class ImageDecodeTask(QtCore.QRunnable):
 
         self.signals.load_complete.emit(texture)
 
-class TextureViewer(Viewer, ICustomTabWindow):
+class TextureViewer(QtWidgets.QWidget):
     """A widget that displays a texture."""
 
+    # Viewer attributes
     name = "Texture Viewer"
-    accepted_extensions = QT_SUPPORTED_FORMATS | {"dds", "pvr", "ktx", "ktx_low", "astc", "cbk"}
+    accepted_extensions = QT_SUPPORTED_FORMATS + ["dds", "pvr", "ktx", "ktx_low", "astc", "cbk"]
     setup_tab_window = setup_texture_viewer_tab_window
 
     def __init__(self):
         super().__init__()
-
-        self._file: IFile | None = None
 
         self._decode_task: ImageDecodeTask | None = None
 
@@ -223,17 +220,10 @@ class TextureViewer(Viewer, ICustomTabWindow):
     def _on_load_failed(self, error: Exception):
         self._message_label.setText(f"Failed to load image: {error}")
 
-    def clear(self):
-        """Clear the texture."""
-        self._texture = None
-        self._image_label.clear()
-
-    def set_file(self, file: IFile):
+    def set_texture(self, data: bytes, extension: str):
         """Set the texture data and extension."""
-        if file.extension.lower() not in self.accepted_extensions:
-            raise ValueError(f"Unsupported image format: {file.extension}")
-
-        self._file = file
+        if extension not in self.accepted_extensions:
+            raise ValueError(f"Unsupported image format: {extension}")
 
         if self._decode_task is not None:
             self._decode_task.cancelled = True
@@ -245,15 +235,13 @@ class TextureViewer(Viewer, ICustomTabWindow):
         self.size_label.setVisible(False)
         self.rendered_size_label.setVisible(False)
 
-        self._decode_task = ImageDecodeTask(file.data, file.extension)
+        self._decode_task = ImageDecodeTask(data, extension)
         self._decode_task.signals.load_complete.connect(self._on_load_complete)
         self._decode_task.signals.load_failed.connect(self._on_load_failed)
 
         QtCore.QThreadPool.globalInstance().start(self._decode_task)
 
-    def get_file(self) -> IFile | None:
-        return self._file
-
-    def unload_file(self):
-        self._file = None
-        self.clear()
+    def clear(self):
+        """Clear the texture."""
+        self._texture = None
+        self._image_label.clear()

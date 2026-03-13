@@ -2,7 +2,6 @@
 
 import ctypes
 import os
-import sys
 from typing import cast, overload
 
 import numpy as np
@@ -16,6 +15,7 @@ from gui.renderers.point_renderer import PointRenderer
 from gui.renderers.text_renderer import TextRenderer
 from gui.utils.rendering import grid
 from gui.widgets.managed_rhi_widget import ManagedRhiWidget
+from gui.widgets.mesh_viewer.camera import OrthogonalDirection
 
 from .camera_controller import CameraController
 
@@ -29,13 +29,13 @@ INSTRUCTIONS = [
     ("Key 1", ("Front View", "Back View")),
     ("Key 3", ("Right View", "Left View")),
     ("Key 7", ("Top View", "Bottom View")),
-    ((sys.platform == "darwin" and "Option" or "Ctrl"), "Alternative Actions")
+    ("Ctrl", "Alternative Actions")
 ]
 
 GRID_COLOR = [0.3, 0.3, 0.3]
 GRID_VERTEX_DATA = [
     float(coord)
-    for grid_line in cast(np.ndarray, grid(360, 10))
+    for grid_line in cast(np.ndarray, grid(5, 10))
     for grid_vertex in grid_line
     for coord in [*grid_vertex, *GRID_COLOR]
 ]
@@ -233,7 +233,7 @@ class MeshRenderWidget(ManagedRhiWidget, CameraController):
             mesh_info = [
                 ("Version", self._mesh_renderer.mesh_data.raw_data.version),
                 ("Bones", self._mesh_renderer.mesh_data.bone_count),
-                ("Vertices", self._mesh_renderer.mesh_data.vertex_count),
+                ("Vertexes", self._mesh_renderer.mesh_data.vertex_count),
                 ("Triangles", self._mesh_renderer.mesh_data.triangle_count)
             ]
 
@@ -302,8 +302,7 @@ class MeshRenderWidget(ManagedRhiWidget, CameraController):
             self.camera.dist = max(self.camera.min_dist, min(ideal_distance, self.camera.max_dist))
         else:
             self.camera.focus()
-        #self.camera.orthogonal(OrthogonalDirection.FRONT)
-        #<aex> this makes viewing experience hell, keep the original user camera viewpos
+        self.camera.orthogonal(OrthogonalDirection.FRONT)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent):
         super()._camera_mouse_pressed_event(event)
@@ -363,9 +362,7 @@ class MeshRenderWidget(ManagedRhiWidget, CameraController):
         self.unload_mesh()
 
         if isinstance(data, MeshData):
-            processed = ProcessedMeshData(data)
-            self.movement_factor = processed.size
-            self._mesh_renderer.mesh_data = processed
+            self._mesh_renderer.mesh_data = ProcessedMeshData(data)
         else:
             loader = MeshLoader()
             dat = loader.load_from_bytes(data)

@@ -3,20 +3,19 @@
 from typing import cast
 from PySide6 import QtWidgets, QtCore
 
-from core.npk.class_types import NPKEntry, NPKEntryDataFlags
+from core.archive.class_types import NPKEntry, NPKEntryDataFlags
 from core.utils import format_bytes
-from gui.utils.viewer import ALL_VIEWERS, find_best_viewer
-from gui.widgets.viewer import Viewer
+from gui.utils.viewer import ALL_VIEWERS, find_best_viewer, get_viewer_display_name, set_entry_for_viewer
 
 SELECT_ENTRY_TEXT = "Select an entry to preview."
 
 class PreviewWidget(QtWidgets.QWidget):
     """
-    A widget that provides a preview of the selected file in the NPK file list.
+    A widget that provides a preview of the selected file in the archive list.
     """
 
     _current_entry: NPKEntry | None = None
-    _previewers: list[Viewer] = []
+    _previewers: list[QtWidgets.QWidget] = []
 
     def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
@@ -59,28 +58,25 @@ class PreviewWidget(QtWidgets.QWidget):
 
         self.set_control_bar_visible(False)
 
-    def _add_previewer(self, previewer: Viewer):
+    def _add_previewer(self, previewer: QtWidgets.QWidget):
         """
         Add a previewer to the preview widget.
         
         :param previewer: The previewer to add.
         :param name: The name of the previewer.
         """
-        self.previewer_selector.addItem(previewer.name, previewer)
+        self.previewer_selector.addItem(get_viewer_display_name(previewer), previewer)
         self._previewers.append(previewer)
 
-    def _set_data_for_previewer(self, previewer: Viewer, data: NPKEntry | None):
+    def _set_data_for_previewer(self, previewer: QtWidgets.QWidget, data: NPKEntry | None):
         """
         Set the data for the previewer. When errors occur, hide the previewer and show an error message.
         
         :param previewer: The previewer to set the data for.
-        :param data: The NPK entry data to set.
+        :param data: The archive entry data to set.
         """
         try:
-            if data is None:
-                previewer.unload_file()
-            else:
-                previewer.set_file(data)
+            set_entry_for_viewer(previewer, data)
         except ValueError as e:
             previewer.setVisible(False)
             self.message_label.setText(cast(str, e.args[0]))
@@ -95,7 +91,7 @@ class PreviewWidget(QtWidgets.QWidget):
         self.status_label.setVisible(visible)
         self.previewer_selector.setVisible(visible)
 
-    def select_previewer(self, previewer: Viewer):
+    def select_previewer(self, previewer: QtWidgets.QWidget):
         """
         Select a previewer to display.
         
@@ -122,7 +118,7 @@ class PreviewWidget(QtWidgets.QWidget):
         """
         Set the file to be previewed and select the appropriate previewer.
         
-        :param npk_entry: The NPK entry to preview.
+        :param npk_entry: The archive entry to preview.
         """
         self.clear()
 
@@ -133,7 +129,7 @@ class PreviewWidget(QtWidgets.QWidget):
 
         self.set_control_bar_visible(True)
 
-        # Find the best previewer for the given NPK entry
+        # Find the best previewer for the given archive entry
         best_previewer = find_best_viewer(npk_entry.extension, bool(npk_entry.data_flags & NPKEntryDataFlags.TEXT))
         for previewer in self._previewers:
             if isinstance(previewer, best_previewer):

@@ -31,14 +31,10 @@ def _decode_correct_format(fmt, data, width, height, block_x = 4, block_y = 4):
     match fmt:
         case "ASTC":
             data = texture2ddecoder.decode_astc(data, width, height, block_x, block_y)
-        case "BC1":
+        case "DXT1":
             data = texture2ddecoder.decode_bc1(data, width, height)
-        case "BC3":
+        case "DXT5":
             data = texture2ddecoder.decode_bc3(data, width, height)
-        case "BC4":
-            data = texture2ddecoder.decode_bc4(data, width, height)
-        case "ETC1":
-            data = texture2ddecoder.decode_etc1(data, width, height)
         case "ETC2":
             data = texture2ddecoder.decode_etc2(data, width, height)
         case "ETC2A1":
@@ -47,8 +43,6 @@ def _decode_correct_format(fmt, data, width, height, block_x = 4, block_y = 4):
             data = texture2ddecoder.decode_etc2a8(data, width, height)
         case "PVRTC":
             data = texture2ddecoder.decode_pvrtc(data, width, height, False)
-        case "RGBA8":
-            return Image.frombytes("RGBA", (width, height), data, 'raw', ("RGBA"))
     return Image.frombytes("RGBA", (width, height), data, 'raw', ("BGRA"))
 
 #this code was derived from TeaEffTeu's works and he slightly guided me, thank you very much for sharing!!
@@ -61,7 +55,7 @@ def compblks_convert(data):
 
     image_data = data[28:]
     if fmt == bytes([0xF3, 0x83]):
-        return _decode_correct_format("BC3", image_data, width, height)
+        return _decode_correct_format("DXT5", image_data, width, height)
     if fmt == bytes([0x78, 0x92]):
         return _decode_correct_format("ETC2A8", image_data, width, height)
 
@@ -82,11 +76,9 @@ def pvr_convert(data: bytes):
         case 3:
             return _decode_correct_format("PVRTC", image_data, width, height)
         case 7:
-            return _decode_correct_format("BC1", image_data, width, height)
+            return _decode_correct_format("DXT1", image_data, width, height)
         case 11:
-            return _decode_correct_format("BC3", image_data, width, height)
-        case 12:
-            return _decode_correct_format("BC4", image_data, width, height)
+            return _decode_correct_format("DXT5", image_data, width, height)
         case 27:
             return _decode_correct_format("ASTC", image_data, width, height, 4, 4)
         case 28:
@@ -133,10 +125,6 @@ def ktx_convert(data: bytes):
 
     image_data = f.read(f"bytes{image_size}")
     match glInternalFormat:
-        case 0x8058:
-            return _decode_correct_format("RGBA8", image_data, width, height)
-        case 0x8D64:
-            return _decode_correct_format("ETC1", image_data, width, height)
         case 0x9274:
             return _decode_correct_format("ETC2", image_data, width, height)
         case 0x9276:
@@ -186,7 +174,7 @@ def convert_image(data, extension):
         return _pillow_image_conversion(data, extension)
     if extension == "pvr":
         return pvr_convert(data)
-    if extension in ["ktx", "ktx_low"]:
+    if extension in ("ktx", "ktx_low"):
         return ktx_convert(data)
     if extension == "astc":
         return astc_convert(data)

@@ -5,7 +5,7 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from core.build_info import BuildInfo
 
 class LogoWidget(QtWidgets.QWidget):
-    """Custom widget that draws the NeoXtractor logo with perfect text positioning"""
+    """Custom widget that draws the NeoXtractor IDX logo with perfect text positioning"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -95,7 +95,7 @@ class AboutWindow(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("About NeoXtractor")
+        self.setWindowTitle("About NeoXtractor IDX")
         self.setFixedSize(450, 300)
         self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowType.WindowContextHelpButtonHint)
 
@@ -109,13 +109,13 @@ class AboutWindow(QtWidgets.QDialog):
 
         # Description
         description = QtWidgets.QLabel(
-            "A tool for extracting data from NPK files."
+            "A tool for extracting data from SKPW IDX+WPK archives."
         )
         description.setWordWrap(True)
         description.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # Copyright info
-        copyright_info = QtWidgets.QLabel("© 2026 MarcosVLl2 & contributors\nNeoX is an game engine developed by Netease. NeoXtractor is not affiliated with Netease.\nThis project is limited for educational purposes.")
+        copyright_info = QtWidgets.QLabel("© 2025 MarcosVLl2 & contributors\nNeoX is an game engine developed by Netease. NeoXtractor IDX is not affiliated with Netease.\nThis project is limited for educational purposes.")
         copyright_info.setWordWrap(True)
         copyright_info.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 

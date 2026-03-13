@@ -5,10 +5,9 @@ import os
 from typing import Type, TypeVar
 from PySide6 import QtWidgets, QtCore
 
-from core.file import IFile, SimpleFile
-from gui.widgets.viewer import ICustomTabWindow, Viewer
+from gui.utils.viewer import get_viewer_display_name, set_data_for_viewer
 
-T = TypeVar("T", bound=Viewer)
+T = TypeVar("T", bound=QtWidgets.QWidget)
 
 class ViewerTabWindow(QtWidgets.QMainWindow):
     """
@@ -23,7 +22,7 @@ class ViewerTabWindow(QtWidgets.QMainWindow):
         super().__init__(parent)
 
         self._viewer_factory = viewer
-        self._viewer_name = viewer.name
+        self._viewer_name = get_viewer_display_name(viewer)
 
         self.setWindowTitle(self._viewer_name)
         self.setMinimumSize(800, 600)
@@ -64,25 +63,23 @@ class ViewerTabWindow(QtWidgets.QMainWindow):
             open_file_action.setShortcut("Ctrl+O")
             def open_file_dialog():
                 file_filter = "All Files (*)"
-                if hasattr(self._viewer_factory, "accepted_extensions"):
+                if hasattr(self._viewer_factory, "accepted_extensions") and \
+                    (not hasattr(self._viewer_factory, "allow_unsupported_extensions") or \
+                     not getattr(self._viewer_factory, "allow_unsupported_extensions")):
                     extensions = getattr(self._viewer_factory, "accepted_extensions")
                     file_filter = f"Supported Files (*.{' *.'.join(extensions)})"
-                    if (hasattr(self._viewer_factory, "allow_unsupported_extensions") and \
-                         getattr(self._viewer_factory, "allow_unsupported_extensions")):
-                        file_filter += " ;; All Files (*)"
                 file_paths, _ = QtWidgets.QFileDialog.getOpenFileNames(
                     self,
                     "Open File",
                     "",
                     file_filter
                 )
-                for i, file_path in enumerate(file_paths):
+                for file_path in file_paths:
                     if file_path:
                         with open(file_path, "rb") as file:
                             data = file.read()
                             filename = os.path.basename(file_path)
-                            file = SimpleFile(filename, data)
-                            self.load_file(file, i == 0)
+                            self.load_file(data, filename)
             open_file_action.triggered.connect(open_file_dialog)
 
             close_all_action = menu.addAction("Close All")
@@ -101,10 +98,10 @@ class ViewerTabWindow(QtWidgets.QMainWindow):
 
         self.menuBar().addMenu(file_menu())
 
-        if issubclass(self._viewer_factory, ICustomTabWindow):
-            self._viewer_factory.setup_tab_window(self)
+        if hasattr(self._viewer_factory, "setup_tab_window"):
+            getattr(self._viewer_factory, "setup_tab_window")(self)
 
-    def load_file(self, file: IFile, take_focus = True):
+    def load_file(self, data: bytes, filename: str):
         """
         Load a file.
         
@@ -113,7 +110,7 @@ class ViewerTabWindow(QtWidgets.QMainWindow):
         """
         viewer = self._viewer_factory()
         try:
-            viewer.set_file(file)
+            set_data_for_viewer(viewer, data, os.path.splitext(filename)[1][1:])
         except ValueError as e:
             QtWidgets.QMessageBox.critical(
                 self,
@@ -121,8 +118,7 @@ class ViewerTabWindow(QtWidgets.QMainWindow):
                 str(e)
             )
             return
-        idx = self.tab_widget.addTab(viewer, file.name)
-        if take_focus:
-            self.tab_widget.setCurrentIndex(idx)
+        idx = self.tab_widget.addTab(viewer, filename)
+        self.tab_widget.setCurrentIndex(idx)
         self.no_tab_label.setVisible(False)
         self.tab_widget.setVisible(True)

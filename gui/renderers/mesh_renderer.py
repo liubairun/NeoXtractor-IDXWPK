@@ -12,7 +12,7 @@ from core.mesh_loader import MeshData
 from core.utils import get_application_path
 from gui.renderers.point_renderer import PointRenderer
 from gui.utils.rendering import is_d3d, static_uniform_buffer_type
-from gui.widgets.viewers.mesh_viewer.camera import Camera
+from gui.widgets.mesh_viewer.camera import Camera
 
 MESH_COLOR = [0.8, 0.8, 0.8]
 
@@ -57,15 +57,8 @@ class ProcessedMeshData:
         self.normal_lines = normal_line_vertices
 
         # Calculate center and size
-        # <aexadev>Axis aligned bounding box to determine model size
-        self.aabb_min = pos.min(axis=0)
-        self.aabb_max = pos.max(axis=0)
-
-        self.center   = (self.aabb_min + self.aabb_max) * 0.5
-        self.extents  = self.aabb_max - self.aabb_min
-
-        self.radius   = np.linalg.norm(self.extents) * 0.5
-        self.size     = self.extents.max()
+        self.center = (np.max(pos, axis=0) + np.min(pos, axis=0)) / 2
+        self.size = np.max(np.linalg.norm(pos - self.center, axis=1))
 
         # Calculate each bone's position and connections
         bone_positions = []

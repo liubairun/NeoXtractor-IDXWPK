@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from core.npk.class_types import NPKEntry
+from core.archive.class_types import NPKEntry
 
 MAGIC_ZSTD = 0x5A535444
 MAGIC_ZLIB = 0x5A4C4942

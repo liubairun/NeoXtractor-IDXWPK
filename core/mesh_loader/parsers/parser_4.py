@@ -6,7 +6,7 @@ import numpy as np
 
 from core.binary_readers import read_float, read_uint16, read_uint32, read_uint8
 from core.mesh_loader.exceptions import MeshParsingError
-from core.mesh_loader.types import MAX_FACE_COUNT, MAX_VERTEX_COUNT, BaseMeshParser, MeshData
+from core.mesh_loader.types import BaseMeshParser, MeshData
 
 class MeshParser4(BaseMeshParser):
     """Adaptive mesh parser that dynamically finds valid mesh offsets for corrupted or variable format files."""
@@ -29,7 +29,7 @@ class MeshParser4(BaseMeshParser):
             try:
                 vertex_count = read_uint32(f)
                 face_count = read_uint32(f)
-                if 10 < vertex_count < MAX_VERTEX_COUNT and 10 < face_count < MAX_FACE_COUNT:
+                if 10 < vertex_count < 1000000 and 10 < face_count < 1000000:
                     return offset
             except struct.error:
                 continue
@@ -57,7 +57,6 @@ class MeshParser4(BaseMeshParser):
                 f.read(2)
                 f.read(count * 4)
             bone_count = read_uint16(f)
-            self._validate_bone_count(bone_count)
             model['bone_parent'] = [read_uint16(f) for _ in range(bone_count)]
             model['bone_name'] = [f.read(32).decode(errors="ignore").strip("\0").replace(" ", "_") \
                                   for _ in range(bone_count)]
@@ -76,9 +75,6 @@ class MeshParser4(BaseMeshParser):
 
         vertex_count = read_uint32(f)
         face_count = read_uint32(f)
-
-        self._validate_vertex_count(vertex_count)
-        self._validate_face_count(face_count)
 
         model['position'] = [(read_float(f), read_float(f), read_float(f)) for _ in range(vertex_count)]
         model['normal'] = [(read_float(f), read_float(f), read_float(f)) for _ in range(vertex_count)]

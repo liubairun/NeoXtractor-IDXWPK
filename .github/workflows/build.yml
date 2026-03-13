@@ -22,7 +22,7 @@ jobs:
           - os: windows-latest
             arch: x64
             asset_name: neoxtractor-windows
-          - os: macos-15-intel
+          - os: macos-latest
             arch: x64
             asset_name: neoxtractor-macos-x64
           - os: macos-latest
@@ -42,20 +42,24 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
         with:
-          version: '0.9.22'
+          version: '0.7.4'
 
-      - name: Install dependencies (macOS)
-        shell: bash
-        if: ${{ startsWith(matrix.os, 'macos') }}
+      - name: Set compiler flags for apple-m1
+        if: matrix.os == 'macos-latest' && matrix.arch == 'arm64'
         run: |
-          export MACOSX_DEPLOYMENT_TARGET=12.0
-          uv sync --python-platform ${{ matrix.arch == 'x64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }} --locked
-          uv pip install pyinstaller
-      
-      - name: Install dependencies (Linux/Windows)
-        shell: bash
-        if: ${{ !startsWith(matrix.os, 'macos') }}
+          export CFLAGS="-march=armv8-a"
+          export CXXFLAGS="-march=armv8-a"
+
+      - name: Set compiler flags for apple-x64
+        if: matrix.os == 'macos-latest' && matrix.arch == 'x64'
         run: |
+          export CFLAGS="-march=x86-64"
+          export CXXFLAGS="-march=x86-64"
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          export CIBUILDWHEEL=1 # Make astc-encoder-py build for all instruction sets
           uv sync --locked
           uv pip install pyinstaller
 

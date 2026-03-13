@@ -2,16 +2,15 @@
 
 from PySide6 import QtWidgets, QtCore, QtGui
 
-from core.file import IFile
 from gui.theme.theme_manager import ThemeManager
-from gui.widgets.viewer import Viewer
 
 from .hex_area import HexArea, HexAreaColors
 from .data_inspector import DATA_INSPECTOR_TYPES
 
-class HexViewer(Viewer):
+class HexViewer(QtWidgets.QWidget):
     """Main widget for the Hex Viewer."""
 
+    # Viewer name
     name = "Hex Viewer"
     allow_unsupported_extensions = True
 
@@ -19,9 +18,6 @@ class HexViewer(Viewer):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
-        self._file: IFile | None = None
-
         self.area = HexArea(self)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -185,19 +181,8 @@ class HexViewer(Viewer):
             else:
                 label.setText("")
 
-    def set_data(self, data: bytearray):
+    def setData(self, data: bytearray):
         """Set the data to be displayed in the hex viewer."""
         self._total_bytes_label.setText(f"{len(data)} bytes in total")
         self.area.data = data
         self._update_data_inspector()
-
-    def set_file(self, file: IFile):
-        self._file = file
-        self.set_data(bytearray(file.data))
-
-    def get_file(self) -> IFile | None:
-        return self._file
-
-    def unload_file(self):
-        self._file = None
-        self.set_data(bytearray())

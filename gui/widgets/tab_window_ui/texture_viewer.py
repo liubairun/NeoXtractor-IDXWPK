@@ -6,7 +6,7 @@ from typing import cast, TYPE_CHECKING
 from PySide6 import QtCore, QtWidgets
 
 if TYPE_CHECKING:
-    from gui.widgets.viewers.texture_viewer import TextureViewer
+    from gui.widgets.texture_viewer import TextureViewer
     from gui.windows.viewer_tab_window import ViewerTabWindow
 
 SAVE_AS_FORMATS = {

@@ -12,7 +12,7 @@ class CameraController:
     def __init__(self):
         self.camera = Camera()
 
-        self.movement_factor = 1
+        self.zoom_speed = 2.5
 
         self._last_mouse_pos = QtCore.QPointF(0, 0)
 
@@ -38,25 +38,17 @@ class CameraController:
             return
 
         current_pos = event.position()
-        delta       = current_pos - self._last_mouse_pos
+        delta = current_pos - self._last_mouse_pos
         self._last_mouse_pos = current_pos
 
-        dx = -delta.x()
-        dy = -delta.y()
-
         if self._mouse_pressed_buttons[QtCore.Qt.MouseButton.LeftButton]:
-            self.camera.orbit(dx, dy)
-
+            self.camera.orbit(delta.x(), delta.y())
         elif self._mouse_pressed_buttons[QtCore.Qt.MouseButton.RightButton]:
-            self.camera.pan(dx, dy)
+            self.camera.pan(delta.x(), delta.y())
 
     def _camera_wheel_event(self, event: QtGui.QWheelEvent):
-        notches = event.angleDelta().y() / 120.0
-        if notches == 0:
-            return
-        zm_stp = 1.1
-        factor = zm_stp ** (-notches)
-        self.camera.dolly(factor)
+        delta = event.angleDelta().y() / 100.0
+        self.camera.dolly(-delta * self.zoom_speed)
 
     def _camera_key_pressed_event(self, event: QtGui.QKeyEvent):
         self._keyboard_pressed_keys[event.key()] = True
@@ -75,7 +67,6 @@ class CameraController:
 
         forward = 0
         right = 0
-
         sprinting = self._keyboard_pressed_keys.get(QtCore.Qt.Key.Key_Shift, False)
 
         if self._keyboard_pressed_keys.get(QtCore.Qt.Key.Key_W, False):
@@ -87,6 +78,6 @@ class CameraController:
         if self._keyboard_pressed_keys.get(QtCore.Qt.Key.Key_D, False):
             right += 1
 
-        speed = 0.1 * self.movement_factor if not sprinting else 0.2 * self.movement_factor
+        speed = 0.1 if not sprinting else 0.2
 
         self.camera.move(QtGui.QVector4D(right * speed, 0, -forward * speed, 0))

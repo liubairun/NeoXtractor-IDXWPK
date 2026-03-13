@@ -2,7 +2,6 @@
 
 import os
 import ctypes
-import time
 from typing import cast
 
 from PySide6 import QtGui, QtWidgets
@@ -43,9 +42,6 @@ class ColorTriangleWidget(ManagedRhiWidget):
         self._view_proj: QtGui.QMatrix4x4 | None = None
 
         self._text_renderer = TextRenderer(self, 16)
-
-        self._last_frame_time = time.time()
-        self._rotation = 0
 
     def initialize(self, cb: QtGui.QRhiCommandBuffer):
         if self._rhi != self.rhi() or self._rhi is None: # type hint
@@ -115,28 +111,14 @@ class ColorTriangleWidget(ManagedRhiWidget):
         self._view_proj.translate(0, 0, -4)
 
     def render(self, cb: QtGui.QRhiCommandBuffer):
-        if self._rhi is None or \
-            self._view_proj is None or \
-            self._vbuf is None or \
-            self._ubuf is None or \
-            self._pipeline is None:
+        if self._rhi is None or self._view_proj is None or self._vbuf is None or self._ubuf is None or self._pipeline is None:
             return
 
         self._text_renderer.render_text("Preview", (10, 10))
 
-        now = time.time()
-        delta = now - self._last_frame_time
-
-        self._rotation += 1.5 * delta * 60
-        if self._rotation >= 360:
-            self._rotation -= 360
-
-        self._last_frame_time = now
-
         resource_updates = self._rhi.nextResourceUpdateBatch()
-        vp = QtGui.QMatrix4x4(self._view_proj)
-        vp.rotate(self._rotation, 0, 1, 0)
-        vp_data = vp.data()
+        self._view_proj.rotate(1.5, 0, 1, 0)
+        vp_data = self._view_proj.data()
         ubuf_data = list(vp_data) + [1] # MVP and Opacity data
         arr = (ctypes.c_float * len(ubuf_data))(*ubuf_data)
         resource_updates.updateDynamicBuffer(self._ubuf, 0, ctypes.sizeof(arr), cast(int, arr))

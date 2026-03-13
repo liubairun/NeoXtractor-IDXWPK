@@ -2,13 +2,10 @@
 
 from PySide6 import QtWidgets, QtCore
 
-from core.file import IFile
-from gui.widgets.viewer import Viewer
+from gui.widgets.mesh_viewer.render_widget import MeshRenderWidget
 from gui.widgets.tab_window_ui.mesh_viewer import setup_mesh_viewer_tab_window
 
-from .render_widget import MeshRenderWidget
-
-class MeshViewer(Viewer):
+class MeshViewer(QtWidgets.QWidget):
     """
     A Qt widget that provides a 3D mesh viewer with interactive controls.
     This widget combines a mesh rendering area with control checkboxes for toggling
@@ -26,14 +23,13 @@ class MeshViewer(Viewer):
     rendering options in the underlying MeshRenderWidget.
     """
 
+    # Viewer attributes
     name = "Mesh Viewer"
-    accepted_extensions = {"mesh"}
+    accepted_extensions = ["mesh"]
     setup_tab_window = setup_mesh_viewer_tab_window
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
-        self._file: IFile | None = None
 
         layout = QtWidgets.QVBoxLayout(self)
 
@@ -72,14 +68,3 @@ class MeshViewer(Viewer):
 
         self.load_mesh = self.render_widget.load_mesh
         self.unload_mesh = self.render_widget.unload_mesh
-
-    def set_file(self, file: IFile):
-        self._file = file
-        self.load_mesh(file.data)
-
-    def get_file(self) -> IFile | None:
-        return self._file
-
-    def unload_file(self):
-        self._file = None
-        self.unload_mesh()

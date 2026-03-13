@@ -8,7 +8,7 @@ from PySide6 import QtCore, QtWidgets
 from core.mesh_converter import FORMATS, convert_mesh
 from gui.widgets.managed_rhi_widget import ManagedRhiWidget
 if TYPE_CHECKING:
-    from gui.widgets.viewers.mesh_viewer.viewer_widget import MeshViewer
+    from gui.widgets.mesh_viewer.viewer_widget import MeshViewer
     from gui.windows.viewer_tab_window import ViewerTabWindow
 
 def _save_as_format(viewer: 'MeshViewer', target_format, file_path: str):

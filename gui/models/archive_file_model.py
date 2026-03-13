@@ -1,21 +1,19 @@
-"""A custom model for displaying NPK files in a QListView."""
+"""A custom model for displaying archive entries in a QListView."""
 
 from typing import Any, cast
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from core.config import Config
-from core.npk.class_types import NPKEntryDataFlags
-from core.npk.npk_file import NPKFile
+from core.archive.class_types import NPKEntryDataFlags
+from core.archive.idxwpk_file import IDXWPKFile
 from core.utils import get_filename_in_config
 
-class NPKFileModel(QtCore.QAbstractListModel):
+class ArchiveFileModel(QtCore.QAbstractListModel):
     """
-    Custom model for displaying NPK files in a QListView.
+    Custom model for displaying archive entries in a QListView.
     """
 
-    _file_names_cache: dict[int, str] = {}
-
-    def __init__(self, npk_file: NPKFile, parent: QtCore.QObject | None = None):
+    def __init__(self, archive_file: IDXWPKFile, parent: QtCore.QObject | None = None):
         super().__init__(parent)
 
         if isinstance(parent, QtWidgets.QWidget):
@@ -24,12 +22,16 @@ class NPKFileModel(QtCore.QAbstractListModel):
             self._errored_icon = parent.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_MessageBoxCritical)
             self._file_icon = parent.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_FileIcon)
 
-        self._npk_file = npk_file
+        self._archive_file = archive_file
+        self._file_names_cache: dict[int, str] = {}
         app = cast(QtCore.QCoreApplication, QtWidgets.QApplication.instance())
         self._game_config: Config = app.property("game_config")
 
+    def to_real_row(self, visible_row: int) -> int:
+        return self._archive_file.get_visible_index(visible_row)
+
     def rowCount(self, parent: QtCore.QModelIndex | QtCore.QPersistentModelIndex = QtCore.QModelIndex()) -> int:
-        return self._npk_file.file_count
+        return self._archive_file.valid_file_count
 
     def data(self, index: QtCore.QModelIndex | QtCore.QPersistentModelIndex,\
              role: int = QtCore.Qt.ItemDataRole.DisplayRole) -> Any:
@@ -37,11 +39,12 @@ class NPKFileModel(QtCore.QAbstractListModel):
             return None
         if role == QtCore.Qt.ItemDataRole.DisplayRole:
             filename = self.get_filename(index)
-            if not self._npk_file.is_entry_loaded(index.row()):
+            real_row = self.to_real_row(index.row())
+            if not self._archive_file.is_entry_loaded(real_row):
                 return filename
 
             # Entry is loaded at this point, get it from cache.
-            entry = self._npk_file.read_entry(index.row())
+            entry = self._archive_file.read_entry(real_row)
 
             if entry.data_flags & NPKEntryDataFlags.ERROR:
                 return f"{filename} (Error)"
@@ -50,11 +53,12 @@ class NPKFileModel(QtCore.QAbstractListModel):
 
             return filename
         if role == QtCore.Qt.ItemDataRole.DecorationRole:
-            if not self._npk_file.is_entry_loaded(index.row()):
+            real_row = self.to_real_row(index.row())
+            if not self._archive_file.is_entry_loaded(real_row):
                 return self._loading_icon
 
             # Entry is loaded at this point, get it from cache.
-            entry = self._npk_file.read_entry(index.row())
+            entry = self._archive_file.read_entry(real_row)
 
             if entry.data_flags & NPKEntryDataFlags.ERROR:
                 return self._errored_icon
@@ -63,16 +67,18 @@ class NPKFileModel(QtCore.QAbstractListModel):
 
             return self._file_icon
         if role == QtCore.Qt.ItemDataRole.ForegroundRole:
-            idx_entry = self._npk_file.indices[index.row()]
+            real_row = self.to_real_row(index.row())
+            idx_entry = self._archive_file.indices[real_row]
             if idx_entry.package_id > 15:
                 return QtGui.QBrush(QtGui.QColor(0, 170, 0))
-            if self._npk_file.is_entry_loaded(index.row()):
-                entry = self._npk_file.read_entry(index.row())
+            if self._archive_file.is_entry_loaded(real_row):
+                entry = self._archive_file.read_entry(real_row)
                 if entry.data_flags & NPKEntryDataFlags.LOOSE_SOURCE:
                     return QtGui.QBrush(QtGui.QColor(0, 170, 0))
             return None
         if role == QtCore.Qt.ItemDataRole.UserRole:
-            return self._npk_file.indices[index.row()]
+            real_row = self.to_real_row(index.row())
+            return self._archive_file.indices[real_row]
         return None
 
     def get_filename(self, index: QtCore.QModelIndex | QtCore.QPersistentModelIndex, invalidate_cache = False) -> str:
@@ -80,9 +86,16 @@ class NPKFileModel(QtCore.QAbstractListModel):
         if not index.isValid():
             return ""
 
-        if index.row() in self._file_names_cache and not invalidate_cache:
-            return self._file_names_cache[index.row()]
+        visible_row = index.row()
+        real_row = self.to_real_row(visible_row)
 
-        filename = get_filename_in_config(self._game_config, index.row(), self._npk_file)
-        self._file_names_cache[index.row()] = filename
+        if visible_row in self._file_names_cache and not invalidate_cache:
+            return self._file_names_cache[visible_row]
+
+        filename = get_filename_in_config(self._game_config, real_row, self._archive_file)
+        self._file_names_cache[visible_row] = filename
         return filename
+
+
+# Backward-compatible alias
+NPKFileModel = ArchiveFileModel

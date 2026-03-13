@@ -1,4 +1,4 @@
-"""Key definitions for NPK decryption."""
+"""Key definitions for archive decryption."""
 
 # Moba XOR key array used for decryption
 MOBA_XOR_KEY = [
@@ -21,7 +21,7 @@ MOBA_XOR_KEY = [
 ]
 
 class KeyGenerator:
-    """A key generator for NPK file decryption."""
+    """A key generator for archive decryption."""
 
     def __init__(self):
         """Initialize the key generator."""

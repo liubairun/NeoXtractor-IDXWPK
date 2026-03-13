@@ -32,7 +32,7 @@ def convert(mesh: MeshData) -> bytes:
         parent_child_dict = {}
         old2new = {}
         index_pool = [-1]
-        bone_pool: list[pmx.Bone] = []
+        bone_pool = []
 
         # Build parent-child relationships
         for i, p in enumerate(mesh.bone_parent):
@@ -42,12 +42,13 @@ def convert(mesh: MeshData) -> bytes:
 
         def build_joint(index, parent_index):
             matrix = mesh.bone_matrix[index]
-            # Extract translation from matrix for PMX
+            # Extract translation from matrix and scale for PMX
             x, y, z = matrix[0, 3], matrix[1, 3], matrix[2, 3]
+            scale_factor = 100.0  # Same scale factor as vertices
             bone_pool.append(pmx.Bone(
                 name=mesh.bone_name[index],
                 english_name=mesh.bone_name[index],
-                position=common.Vector3(x, y, z),
+                position=common.Vector3(round(x * scale_factor), round(y * scale_factor), round(z * scale_factor)),
                 parent_index=parent_index,
                 layer=0,
                 flag=0
@@ -92,11 +93,15 @@ def convert(mesh: MeshData) -> bytes:
         pmx_model.bones = [root_bone]
         old2new = {0: 0}
 
+    # Add vertices with scaling for PMX integer format
+    # PMX uses integer coordinates, so we need to scale up small meshes
+
     for i, position in enumerate(mesh.position):
         x, y, z = position
         nx, ny, nz = mesh.normal[i] if mesh.has_normals else (0.0, 0.0, 1.0)
         u, v = mesh.uv[i] if mesh.has_uvs else (0.0, 0.0)
 
+        # Remove scaling and rounding, use cast(int, x) for Vector creation
         if mesh.has_bones and i < len(mesh.vertex_bone):
             # Map old bone indices to new ones
             vertex_joint_index = []

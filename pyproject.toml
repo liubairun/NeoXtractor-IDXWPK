@@ -1,7 +1,7 @@
 [project]
-name = "neoxtractor"
+name = "neoxtractor-idxwpk"
 version = "0.1.0"
-description = "NeoX NXPK / EXPK (.npk) extraction and viewer tool"
+description = "NeoX SKPW IDX+WPK extraction and viewer tool"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
