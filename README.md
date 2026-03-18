@@ -1,24 +1,50 @@
-# NeoXtractor IDX
+# NeoXtractor-IDXWPK
 
-A PySide6 desktop tool for browsing, previewing, extracting, and viewing files from NeoX **SKPW IDX + WPK** archives.
+![Python versions](https://img.shields.io/badge/python-3.13.3-blue)
 
-This build is intentionally focused on the newer archive layout:
 
-- input archive: `*.idx`
-- data shards: `*.wpk`
-- stage-1 payload handling: `CA / CP / CX`
-- optional wrapped `ENONNXS3 -> NXS3`
-- final preview/extract pipeline reuses the original GUI, image viewers, and mesh tooling
+NeoXtractor-IDXWPK is a modified fork of NeoXtractor with extended support for NeoX and NeoX3 archive unpacking workflows.
 
-## What changed
+This fork adds practical support for `IDX/WPK`, `slot_file`, and related nested payload decoding, in addition to the original `NPK/EXPK` archive workflow.
 
-- old `NXPK / EXPK (.npk)` support was removed from the archive reader
-- the GUI now opens `*.idx`
-- the backend reads matching `stem{pkg_id}.wpk` files automatically
-- archive entries are exposed to the rest of the app through the same archive entry API so existing viewers continue to work
+## Features
 
-## Notes
+- Support for `NPK`, `EXPK`, `IDX`, and `WPK`
+- Support for paired `WPK` packages and `slot_file` resources
+- Nested payload decoding support for newer NeoX3 resource packages
+- GUI-based archive browsing, preview, and extraction
+- File renaming and config-based archive handling
 
-- file names default to the 16-byte hash from the IDX table
-- config-based renaming still works through the existing signature-to-name mapping
-- image preview, text preview, and mesh viewers are kept from the original project
+## Usage
+
+Run the GUI:
+
+```bash
+python main.py gui
+```
+
+If built as an executable:
+
+```bash
+NeoXtractor-IDXWPK.exe
+```
+
+## Status
+
+This project is an actively modified fork focused on broader NeoX archive support, especially newer NeoX3 resource package unpacking.
+
+Some archive variants and decoding paths are still sample-dependent.
+
+## Thanks
+
+This project is based on the original **NeoXtractor** by **MarcosVLl2** and contributors.
+
+Many thanks to the original author for open-sourcing the foundation of this tool.
+
+## Disclaimer
+
+NeoX is an in-house game engine developed by NetEase.
+
+This project is a modified fork of the original **NeoXtractor** and is **not affiliated with NetEase**.
+
+For educational and research purposes only.

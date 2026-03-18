@@ -14,9 +14,9 @@ from gui.utils.config import load_config_manager_from_settings, save_config_mana
 from gui.windows.main_window import MainWindow
 
 def run():
-    """Run NeoXtractor IDX as a GUI application."""
+    """Run NeoXtractor-IDXWPK as a GUI application."""
 
-    get_logger().info("Starting NeoXtractor IDX in GUI mode...")
+    get_logger().info("Starting NeoXtractor-IDXWPK in GUI mode...")
 
     app = QtWidgets.QApplication(sys.argv)
 

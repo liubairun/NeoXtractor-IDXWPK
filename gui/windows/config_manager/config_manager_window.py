@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout,
 from core.config import Config
 from core.utils import get_application_path
 from gui.config_manager import ConfigManager
-from gui.utils.archive import get_archive_file
+from gui.utils.npk import get_npk_file
 
 from .new_config_dialog import NewConfigDialog
 from .edit_config_dialog import EditConfigDialog
@@ -119,11 +119,11 @@ class ConfigManagerWindow(QDialog):
                 QMessageBox.critical(self, "Error", f"Config '{config_name}' not found.")
                 return
 
-            # Check if trying to edit current config while archive is loaded
-            if self._is_config_current_config(config) and get_archive_file() is not None:
+            # Check if trying to edit current config while NPK file is loaded
+            if self._is_config_current_config(config) and get_npk_file() is not None:
                 QMessageBox.warning(self, "Warning",
-                                  "Cannot edit the current config while an archive is loaded. "
-                                  "Please close the archive first.")
+                                  "Cannot edit the current config while an NPK file is loaded. "
+                                  "Please close the NPK file first.")
                 return
 
             idx = cast(int, self.config_manager.get_config_index(config))
@@ -144,14 +144,14 @@ class ConfigManagerWindow(QDialog):
             QMessageBox.warning(self, "Warning", "Please select at least one config to delete.")
             return
 
-        # Check if trying to delete current config while archive is loaded
+        # Check if trying to delete current config while NPK file is loaded
         for item in selected_items:
             config_name = item.text()
             config = self.config_manager.get_config(config_name)
-            if config and self._is_config_current_config(config) and get_archive_file() is not None:
+            if config and self._is_config_current_config(config) and get_npk_file() is not None:
                 QMessageBox.warning(self, "Warning",
-                                  "Cannot delete the current config while an archive is loaded. "
-                                  "Please close the archive first.")
+                                  "Cannot delete the current config while an NPK file is loaded. "
+                                  "Please close the NPK file first.")
                 return
 
         # Confirmation dialog

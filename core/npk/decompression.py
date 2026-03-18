@@ -1,253 +1,234 @@
-"""Stage decoding helpers for SKPW IDX+WPK archives."""
+"""Provides decompression functions."""
 
-import struct
 from typing import cast
+import zlib
+import lz4.block
+import zstandard
 
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
+from core.npk.enums import CompressionType
 from core.npk.class_types import NPKEntry
+from core.rotor import Rotor
 
-MAGIC_ZSTD = 0x5A535444
-MAGIC_ZLIB = 0x5A4C4942
-MAGIC_LZ4F = 0x4C5A3446
-MAGIC_OODL = 0x4F4F444C
-MAGIC_NONE = 0x4E4F4E45
+def init_rotor():
+    """Initializes the rotor instance."""
+    asdf_dn = 'j2h56ogodh3se'
+    asdf_dt = '=dziaq.'
+    asdf_df = '|os=5v7!"-234'
+    asdf_tm = asdf_dn * 4 + (asdf_dt + asdf_dn + asdf_df) * 5 + '!' + '#' + asdf_dt * 7 + asdf_df * 2 + '*' + '&' + "'"
+    rot = Rotor(asdf_tm)
+    return rot
 
-def derive_key(length: int, t: int) -> bytes:
-    v10 = (t + (length & 0xFFFFFFFF)) & 0xFF
-    v28 = (
-        0x7C2E6B6A00000000
-        | (((length & 0xFFFFFFFF) << 8) & 0xFFFF0000)
-        | (v10 << 8)
-        | (length % 0xFD)
-    )
-    v29 = (
-        0x5C74656E00003630
-        | (((v10 ^ 0x33) << 16) & 0xFFFFFFFF00FFFFFF)
-        | (((v10 | 0x2E) << 24))
-    )
-    return struct.pack('<QQ', v28 & 0xFFFFFFFFFFFFFFFF, v29 & 0xFFFFFFFFFFFFFFFF)
+def _reverse_string(s):
+    l = list(s)
+    l = list(map(lambda x: x ^ 154, l[0:128])) + l[128:]
+    l.reverse()
+    return bytes(l)
 
-def aes_decrypt_prefix(buf: bytearray, nbytes: int, key16: bytes) -> int:
-    if nbytes <= 0:
-        return 0
-    done = (nbytes // 16) * 16
-    if done == 0:
-        return 0
-    cipher = Cipher(algorithms.AES(key16), modes.ECB(), backend=default_backend())
-    dec = cipher.decryptor()
-    buf[:done] = dec.update(bytes(buf[:done])) + dec.finalize()
-    return done
-
-def xor_offset(buf: bytearray, offset: int, want: int, seed: int):
-    if want <= 0:
-        return
-    m = min(offset, want)
-    for i in range(m):
-        buf[offset + i] ^= ((seed + i) + buf[i]) & 0xFF
-    for i in range(want - m):
-        buf[offset + m + i] ^= (seed + m + i) & 0xFF
-
-def xor_linear(buf: bytearray, want: int, seed: int):
-    for i in range(want):
-        buf[i] ^= (seed + i) & 0xFF
-
-def header_decode(buf: bytearray):
-    n = min(64, len(buf))
-    if n <= 0:
-        return
-    i, j = 0, n - 1
-    while i < j:
-        bi = buf[i] ^ 0x5A
-        bj = buf[j] ^ 0x5A
-        buf[i] = bj
-        buf[j] = bi
-        i += 1
-        j -= 1
-    if i == j:
-        buf[i] ^= 0x5A
-
-def decode_payload_stage1(payload: bytes):
-    if len(payload) < 8:
-        return None
-    tag = int.from_bytes(payload[0:2], 'little')
-    p = payload[2]
-    t = payload[3]
-    body = bytearray(payload[8:])
-    length = len(body)
-    nbytes = 0
-    if length > 0 and p != 0:
-        nbytes = min(length, (128 << (p - 1)))
-    seed = (t + length) & 0xFFFFFFFF
-    if tag in (0x4341, 0x4350):
-        key = derive_key(length, t)
-        done = aes_decrypt_prefix(body, nbytes, key)
-        want = max(0, nbytes - done)
-        if want > 0:
-            xor_offset(body, done, want, seed)
-    elif tag == 0x4358:
-        xor_linear(body, nbytes, seed)
-    else:
-        return None
-    header_decode(body)
-    return bytes(body), tag
-
-def trim_none_prefix(data: bytes):
-    """Strip the generic ENON wrapper if present.
-
-    ENON is an outer prefix, not a payload type by itself. After removing it,
-    callers should inspect the real content and decide whether it is NXS3,
-    CA/CP/CX stage1 payload, or already-plain data.
+def decompress_entry(entry: NPKEntry):
     """
-    if len(data) >= 4 and data[:4] == b'ENON':
-        data = data[4:]
-        if len(data) >= 8 and data[:8] == b'NXS3\x03\x00\x00\x01':
-            return data, 'nxs3'
-        return data, 'enon'
-    return data, None
+    This function determines the compression type specified in the `zip_flag` attribute
+    of the provided `entry` and applies the corresponding decompression algorithm.
+    The decompressed data is returned as the output.
 
-def _decompress_zstd(frame: bytes) -> bytes:
-    import io
-    import zstandard as zstd
 
-    dctx = zstd.ZstdDecompressor()
-    try:
-        return dctx.decompress(frame)
-    except zstd.ZstdError:
-        chunks: list[bytes] = []
-        with dctx.stream_reader(io.BytesIO(frame)) as rdr:
+    Returns:
+        bytes: The decompressed data.
+
+
+        The decompressed data is returned as a new object and does not modify the original
+        `data` attribute of the `entry` object.
+    """
+
+    if entry.zip_flag == CompressionType.ZLIB:
+        return zlib.decompress(entry.data, bufsize=entry.file_original_length)
+
+    if entry.zip_flag == CompressionType.LZ4:
+        return lz4.block.decompress(entry.data,
+                                          uncompressed_size=entry.file_original_length)
+
+    if entry.zip_flag == CompressionType.ZSTANDARD:
+        return zstandard.ZstdDecompressor().decompress(entry.data)
+
+    # No matched compression.
+    return entry.data
+
+def strip_none_wrapper(data: bytes) -> bytes:
+    """Strip a simple NONE wrapper header if present."""
+    if data[:4] == b"NONE":
+        return data[4:]
+    return data
+
+
+def check_lz4_like(data: bytes) -> bool:
+    """Check for the custom LZ4-like stream seen in user samples."""
+    return len(data) >= 4 and data[:4] == b"\x27\xE3\x00\x01"
+
+
+def unpack_lz4_like(data: bytes) -> bytes:
+    """
+    Decode the custom LZ4-like stream used by some payloads.
+
+    The bitstream behavior matches the user-provided reference script:
+    - token high nibble  = literal length
+    - token low nibble   = match length
+    - optional 0xFF extension bytes
+    - 16-bit little-endian match offset
+    - final match length += 4
+    """
+    import struct
+
+    if not data:
+        return b""
+
+    in_ptr = 0
+    out_buf = bytearray()
+    data_len = len(data)
+
+    while in_ptr < data_len:
+        token = data[in_ptr]
+        in_ptr += 1
+
+        literal_len = token >> 4
+        match_len = token & 0x0F
+
+        if literal_len == 15:
             while True:
-                chunk = rdr.read(1 << 20)
-                if not chunk:
+                if in_ptr >= data_len:
                     break
-                chunks.append(chunk)
-        return b''.join(chunks)
+                byte_val = data[in_ptr]
+                in_ptr += 1
+                literal_len += byte_val
+                if byte_val != 0xFF:
+                    break
 
+        if in_ptr + literal_len > data_len:
+            break
 
-def _decompress_zlib(frame: bytes) -> bytes:
-    import zlib
+        out_buf.extend(data[in_ptr:in_ptr + literal_len])
+        in_ptr += literal_len
 
-    last_exc = None
-    for wbits in (15, -15, 31):
-        try:
-            return zlib.decompress(frame, wbits)
-        except zlib.error as exc:
-            last_exc = exc
-    raise RuntimeError(f'ZLIB decompress failed: {last_exc}')
+        if in_ptr >= data_len:
+            break
 
+        if in_ptr + 2 > data_len:
+            break
 
-def _decompress_lz4f(frame: bytes) -> bytes:
-    import lz4.frame as lz4f
+        offset = struct.unpack('<H', data[in_ptr:in_ptr + 2])[0]
+        in_ptr += 2
 
-    return lz4f.decompress(frame)
+        if match_len == 15:
+            while True:
+                if in_ptr >= data_len:
+                    break
+                byte_val = data[in_ptr]
+                in_ptr += 1
+                match_len += byte_val
+                if byte_val != 0xFF:
+                    break
 
+        match_len += 4
 
-def try_decompress_dtsz_or_none(buf: bytes) -> bytes:
-    if len(buf) < 4:
-        raise ValueError('Length too short for DTSZ-like tag')
+        start_pos = len(out_buf) - offset
+        if start_pos < 0:
+            break
 
-    tag = int.from_bytes(buf[:4], 'little')
-    frame = bytes(memoryview(buf)[4:])
+        for i in range(match_len):
+            if start_pos + i >= len(out_buf):
+                break
+            out_buf.append(out_buf[start_pos + i])
 
-    if tag == MAGIC_ZSTD:
-        return _decompress_zstd(frame)
-    if tag == MAGIC_ZLIB:
-        return _decompress_zlib(frame)
-    if tag == MAGIC_LZ4F:
-        return _decompress_lz4f(frame)
-    if tag == MAGIC_NONE:
-        return frame
-    if tag == MAGIC_OODL:
-        raise RuntimeError('OODL/Oodle payload is not supported')
-    raise RuntimeError(f'Unknown DTSZ-like tag 0x{tag:08X}')
-
-
-def maybe_unpack_dtsz(data: bytes) -> tuple[bytes, str | None]:
-    """Try the post-NXS3/cleartext compression wrapper used by many SKPW assets.
-
-    Returns ``(decoded_data, codec_name)`` when a supported wrapper is found, otherwise
-    returns ``(original_data, None)``. Unsupported wrappers such as OODL are preserved
-    as-is so the GUI can still export them.
-    """
-    if len(data) < 4:
-        return data, None
-
-    tag = int.from_bytes(data[:4], 'little')
-    if tag not in (MAGIC_ZSTD, MAGIC_ZLIB, MAGIC_LZ4F, MAGIC_NONE, MAGIC_OODL):
-        return data, None
-
-    codec_map = {
-        MAGIC_ZSTD: 'zstd',
-        MAGIC_ZLIB: 'zlib',
-        MAGIC_LZ4F: 'lz4f',
-        MAGIC_NONE: 'none',
-        MAGIC_OODL: 'oodl',
-    }
-    codec = codec_map[tag]
-
-    if tag == MAGIC_OODL:
-        return data, codec
-
-    try:
-        return try_decompress_dtsz_or_none(data), codec
-    except Exception:
-        return data, codec
+    return bytes(out_buf)
 
 
 def check_nxs3(entry: NPKEntry) -> bool:
-    return entry.data[:8] == b'NXS3\x03\x00\x00\x01'
+    """Check if the data is wrapped in NXS3 format."""
+    return entry.data[:8] == b"NXS3\x03\x00\x00\x01"
+
 
 def check_rotor(entry: NPKEntry) -> bool:
-    return False
+    """Check if the data is ROTOR encrypted."""
+    return (entry.data[:2] == bytes([0x1D, 0x04]) or entry.data[:2] == bytes([0x15, 0x23]))
 
-def unpack_rotor(data: bytes):
-    return data
+def unpack_rotor(data):
+    """Unpacks the ROTOR decryption with the RSA public key and zlib decompression"""
+    return _reverse_string(zlib.decompress(init_rotor().decrypt(data)))
 
 def rsa_public_decrypt(signature: bytes, key: rsa.RSAPublicKey) -> bytes:
+    """Converts a signature to an integer and decrypts it using the RSA public key."""
     public_numbers = key.public_numbers()
     e = public_numbers.e
     n = public_numbers.n
-    k = (n.bit_length() + 7) // 8
+
+    k = (n.bit_length() + 7) // 8  # key length in bytes
     if len(signature) != k:
-        raise ValueError('Signature length mismatch')
+        raise ValueError("Signature length does not match key size")
+
+    # Convert signature to integer
     sig_int = int.from_bytes(signature, byteorder='big')
+
+    # RSA public operation: m = sig^e mod n
     m_int = pow(sig_int, e, n)
+
+    # Convert back to bytes
     decrypted = m_int.to_bytes(k, byteorder='big')
-    if len(decrypted) < 2 or decrypted[0] != 0x00 or decrypted[1] != 0x01:
-        raise ValueError('Invalid PKCS#1 padding')
+
+    # Remove PKCS#1 v1.5 padding
+    if decrypted[0] != 0x00 or decrypted[1] != 0x01:
+        raise ValueError("Incorrect padding")
+
+    # Padding is 0xFF ... 0x00, then the message
     try:
         padding_end = decrypted.index(0x00, 2)
-    except ValueError as exc:
-        raise ValueError('Padding end not found') from exc
+    except ValueError as e:
+        raise ValueError("Padding end not found") from e
+
     return decrypted[padding_end + 1:]
 
-def get_neox_rsa_pubkey():
+def unpack_nxs3(data):
+    """
+    Decrypts and unpacks data encrypted with a custom algorithm using an RSA public key.
+    This function extracts an encrypted key from the input data, decrypts it using
+    an RSA public key, and uses the resulting ephemeral key to decrypt the remaining
+    data. The decryption process involves XOR operations and bitwise manipulations.
+    Args:
+        data (bytes): The input data to be decrypted. The data must contain an
+                      encrypted key starting at offset 20, followed by the encrypted payload.
+    Returns:
+        bytes: The decrypted data.
+    Raises:
+        ValueError: If the decryption of the encrypted key fails.
+    """
+
+    # Parse the RSA public key
     pem_key = b"""-----BEGIN RSA PUBLIC KEY-----
 MIGJAoGBAOZAaZe2qB7dpT9Y8WfZIdDv+ooS1HsFEDW2hFnnvcuFJ4vIuPgKhISm
 pY4/jT3aipwPNVTjM6yHbzOLhrnGJh7Ec3CQG/FZu6VKoCqVEtCeh15hjcu6QYtn
 YWIEf8qgkylqsOQ3IIn76udV6m0AWC2jDlmLeRcR04w9NNw7+9t9AgMBAAE=
 -----END RSA PUBLIC KEY-----"""
-    return cast(rsa.RSAPublicKey, serialization.load_pem_public_key(pem_key, backend=default_backend()))
 
-def unpack_nxs3(data: bytes, rsa_key: rsa.RSAPublicKey | None = None) -> bytes:
-    if len(data) < 148:
-        raise ValueError('NXS3 data too short')
-    if data[:8] != b'NXS3\x03\x00\x00\x01':
-        raise ValueError('Not a valid NXS3 file')
-    if rsa_key is None:
-        rsa_key = get_neox_rsa_pubkey()
-    wrapped_key = rsa_public_decrypt(data[20:148], rsa_key)[:4]
-    if len(wrapped_key) < 4:
-        raise ValueError('Wrapped key too short')
-    ephemeral_key = int.from_bytes(wrapped_key, 'little')
-    decrypted = bytearray()
-    for i, x in enumerate(data[148:]):
-        val = x ^ ((ephemeral_key >> ((i % 4) * 8)) & 0xFF)
-        decrypted.append(val)
+    rsa_key = cast(rsa.RSAPublicKey, serialization.load_pem_public_key(pem_key, backend=default_backend()))
+
+    wrapped_key = rsa_public_decrypt(data[20:20+128], rsa_key)[:4]
+
+    if wrapped_key is None:
+        raise ValueError("Decryption of the encrypted key failed.")
+
+    # Convert to int
+    ephemeral_key = int.from_bytes(wrapped_key, "little")
+
+    # Continue with the existing decryption logic
+    decrypted = []
+
+    for i, x in enumerate(data[20 + 128:]):
+        val = x ^ ((ephemeral_key >> (i % 4 * 8)) & 0xff)
         if i % 4 == 3:
-            ror = ((ephemeral_key >> 19) | ((ephemeral_key << (32 - 19)) & 0xFFFFFFFF)) & 0xFFFFFFFF
+            ror = (ephemeral_key >> 19) | ((ephemeral_key << (32 - 19)) & 0xFFFFFFFF)
             ephemeral_key = (ror + ((ror << 2) & 0xFFFFFFFF) + 0xE6546B64) & 0xFFFFFFFF
-    return bytes(decrypted)
+        decrypted.append(val)
+
+    decrypted = bytes(decrypted)
+    return decrypted

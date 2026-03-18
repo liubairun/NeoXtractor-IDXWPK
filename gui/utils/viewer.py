@@ -3,7 +3,7 @@
 from typing import Type
 from PySide6 import QtWidgets
 
-from core.archive.class_types import NPKEntry
+from core.npk.class_types import NPKEntry
 from gui.widgets.code_editor import CodeEditor
 from gui.widgets.hex_viewer import HexViewer
 from gui.widgets.mesh_viewer.viewer_widget import MeshViewer
@@ -13,9 +13,9 @@ ALL_VIEWERS = (HexViewer, CodeEditor, TextureViewer, MeshViewer)
 
 def find_best_viewer(extension: str, is_text = False) -> Type[QtWidgets.QWidget]:
     """
-    Finds and selects the most appropriate previewer widget for the given archive entry.
+    Finds and selects the most appropriate previewer widget for the given NPK entry.
     This method iterates through available previewers and selects one based on the file extension
-    of the archive entry. If a previewer declares compatibility with the entry's extension through
+    of the NPK entry. If a previewer declares compatibility with the entry's extension through
     its 'accepted_extensions' attribute, that previewer is selected. If no specialized previewer
     is found, it defaults to a code editor for text files or a hex viewer for binary files.
     Args:
@@ -43,10 +43,7 @@ def set_data_for_viewer(viewer: QtWidgets.QWidget, data: bytes | None, extension
     if isinstance(viewer, HexViewer):
         viewer.setData(bytearray(data) if data is not None else bytearray())
     elif isinstance(viewer, CodeEditor):
-        if data is None:
-            viewer.set_content("")
-        else:
-            viewer.set_content(data.decode("utf-8", errors="replace"), extension)
+        viewer.set_bytes(data, extension)
     elif isinstance(viewer, TextureViewer):
         if data is None:
             viewer.clear()
@@ -64,7 +61,7 @@ def set_entry_for_viewer(viewer: QtWidgets.QWidget, data: NPKEntry | None):
     Set the data for the viewer.
     
     :param viewer: The viewer to set the data for.
-    :param data: The archive entry data to set.
+    :param data: The NPK entry data to set.
     """
     set_data_for_viewer(viewer, data.data if data is not None else None, \
                          data.extension if data is not None else "dat")

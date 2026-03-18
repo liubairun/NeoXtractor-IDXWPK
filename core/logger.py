@@ -58,10 +58,10 @@ def get_logger(module_name=None):
     return logging.getLogger(module_name)
 
 # Default logger with the main application name
-default_logger = get_logger("NeoXtractor")
+default_logger = get_logger("NeoXtractor-IDXWPK")
 
 def setup_logger():
-    """Setup logger for NeoXtractor."""
+    """Setup logger for NeoXtractor-IDXWPK."""
     log_level = logging.INFO
 
     if arguments.log_level is not None:

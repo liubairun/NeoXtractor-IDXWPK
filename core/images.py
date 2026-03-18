@@ -11,9 +11,66 @@ from bitstring import ConstBitStream
 
 from core.binary_readers import read_uintle32, read_uintle64
 
+
+def _dds_dxgi_fallback(data: bytes):
+    """Fallback DDS decoder for simple DX10 BGRA/BGRX formats unsupported by Pillow."""
+    if len(data) < 148 or data[:4] != b"DDS ":
+        raise ValueError("Not a DDS file")
+
+    header_size = int.from_bytes(data[4:8], "little")
+    if header_size != 124:
+        raise ValueError(f"Unsupported DDS header size: {header_size}")
+
+    height = int.from_bytes(data[12:16], "little")
+    width = int.from_bytes(data[16:20], "little")
+    fourcc = data[84:88]
+
+    # DX10 extended header required for DXGI_FORMAT values.
+    if fourcc != b"DX10":
+        raise NotImplementedError("DDS fallback only handles DX10 DDS files")
+
+    dxgi_format = int.from_bytes(data[128:132], "little")
+    pixel_data = data[148:]
+
+    # DXGI_FORMAT_B8G8R8X8_UNORM_SRGB = 93
+    # Stored as B8 G8 R8 X8 (ignored alpha byte).
+    if dxgi_format == 93:
+        expected = width * height * 4
+        if len(pixel_data) < expected:
+            raise ValueError(
+                f"DDS pixel data truncated for DXGI 93: expected {expected}, got {len(pixel_data)}"
+            )
+        image = Image.frombytes("RGBX", (width, height), pixel_data[:expected], "raw", "BGRX")
+        return image.convert("RGBA")
+
+    # A few closely related uncompressed BGRA variants are cheap to support too.
+    if dxgi_format in (87, 91):  # B8G8R8A8_UNORM / _SRGB
+        expected = width * height * 4
+        if len(pixel_data) < expected:
+            raise ValueError(
+                f"DDS pixel data truncated for DXGI {dxgi_format}: expected {expected}, got {len(pixel_data)}"
+            )
+        return Image.frombytes("RGBA", (width, height), pixel_data[:expected], "raw", "BGRA")
+
+    if dxgi_format in (88, 93):  # B8G8R8X8_UNORM / _SRGB
+        expected = width * height * 4
+        if len(pixel_data) < expected:
+            raise ValueError(
+                f"DDS pixel data truncated for DXGI {dxgi_format}: expected {expected}, got {len(pixel_data)}"
+            )
+        image = Image.frombytes("RGBX", (width, height), pixel_data[:expected], "raw", "BGRX")
+        return image.convert("RGBA")
+
+    raise NotImplementedError(f"Unsupported DDS DXGI fallback format {dxgi_format}")
+
 #tga, ico, tiff, dds
 def _pillow_image_conversion(data, fmt):
-    return Image.open(io.BytesIO(data), "r", (fmt.upper(), "PNG"))
+    try:
+        return Image.open(io.BytesIO(data), "r", (fmt.upper(), "PNG"))
+    except NotImplementedError:
+        if fmt.lower() == "dds":
+            return _dds_dxgi_fallback(data)
+        raise
 
 def image_to_png_data(img: Image.Image | ImageFile.ImageFile) -> bytes:
     """Convert an image to PNG data."""
@@ -25,11 +82,20 @@ def _get_pitch(width):
     return max(1, ((width+3)//4) ) * 16
 
 def _get_astc_file_size(width, height, block_x, block_y):
-    return math.ceil(width/block_y) * math.ceil(height/block_x) * 16
+    return math.ceil(width / block_x) * math.ceil(height / block_y) * 16
+
+def _validate_astc_payload(data: bytes, width: int, height: int, block_x: int, block_y: int):
+    expected = _get_astc_file_size(width, height, block_x, block_y)
+    if len(data) < expected:
+        raise ValueError(
+            f"ASTC payload truncated for {block_x}x{block_y}: expected {expected}, got {len(data)}"
+        )
+    return data[:expected]
 
 def _decode_correct_format(fmt, data, width, height, block_x = 4, block_y = 4):
     match fmt:
         case "ASTC":
+            data = _validate_astc_payload(data, width, height, block_x, block_y)
             data = texture2ddecoder.decode_astc(data, width, height, block_x, block_y)
         case "DXT1":
             data = texture2ddecoder.decode_bc1(data, width, height)
@@ -88,7 +154,7 @@ def pvr_convert(data: bytes):
         case 30:
             return _decode_correct_format("ASTC", image_data, width, height, 6, 5)
         case 31:
-            return _decode_correct_format("ASTC", image_data, width, height, 6, 5)
+            return _decode_correct_format("ASTC", image_data, width, height, 6, 6)
         case 32:
             return _decode_correct_format("ASTC", image_data, width, height, 8, 5)
         case 33:
@@ -140,7 +206,7 @@ def ktx_convert(data: bytes):
         case 0x93B3:
             return _decode_correct_format("ASTC", image_data, width, height, 6, 5)
         case 0x93B4:
-            return _decode_correct_format("ASTC", image_data, width, height, 6, 5)
+            return _decode_correct_format("ASTC", image_data, width, height, 6, 6)
         case 0x93B5:
             return _decode_correct_format("ASTC", image_data, width, height, 8, 5)
         case 0x93B6:
@@ -170,8 +236,11 @@ def astc_convert(data: bytes):
 
 def convert_image(data, extension):
     """Identify and convert image data to Image."""
-    if extension == "dds":
-        return _pillow_image_conversion(data, extension)
+    if extension in ("dds", "psd"):
+        image = _pillow_image_conversion(data, extension)
+        if extension == "psd":
+            image = image.convert("RGBA")
+        return image
     if extension == "pvr":
         return pvr_convert(data)
     if extension in ("ktx", "ktx_low"):

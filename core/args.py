@@ -4,7 +4,7 @@ import argparse
 
 from core.build_info import BuildInfo
 
-parser = argparse.ArgumentParser(description='NeoXtractor')
+parser = argparse.ArgumentParser(description='NeoXtractor-IDXWPK')
 parser.add_argument('--version', '-v',
                     action='version',
                     version=f'{BuildInfo.version if BuildInfo.version else "development"} (Build: {
@@ -15,7 +15,7 @@ parser.add_argument('--log-level',
 
 _subparsers = parser.add_subparsers(help="subcommand help", dest="subcommand")
 
-gui_parser = _subparsers.add_parser('gui', help='Run the NeoXtractor GUI')
+gui_parser = _subparsers.add_parser('gui', help='Run the NeoXtractor-IDXWPK GUI')
 
 arguments = argparse.Namespace()
 

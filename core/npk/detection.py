@@ -28,16 +28,6 @@ def _get_binary_ext(data: bytes, flags: NPKEntryDataFlags):
         return 'pvr'
     if data[:4] == bytes([0x34, 0x80, 0xC8, 0xBB]):
         return 'mesh'
-    if data[:4] == b'ZSTD':
-        return 'dtsz'
-    if data[:4] == b'ZLIB':
-        return 'zlibpack'
-    if data[:4] == b'LZ4F':
-        return 'lz4pack'
-    if data[:4] == b'OODL':
-        return 'oodl'
-    if data[:4] == b'NONE':
-        return 'nonepack'
     if data[:4] == b'RIFF':
         if b'FEV' in data:
             return 'fev'
@@ -59,8 +49,7 @@ def _get_binary_ext(data: bytes, flags: NPKEntryDataFlags):
         return 'blast'
     if data[:4] == bytes([0xE3, 0x00, 0x00, 0x00]) or \
          data[:4] == bytes([0x63, 0x00, 0x00, 0x00]) or \
-         data[:4] == bytes([0x4C, 0x0F, 0x00, 0x00]) or \
-         data[:4] == bytes([0x27, 0xE3, 0x00, 0x01]):
+         data[:4] == bytes([0x4C, 0x0F, 0x00, 0x00]):
         return 'pyc'
     if data[:12] == b'CocosStudio-UI':
         return 'coc'
@@ -114,6 +103,12 @@ def _get_binary_ext(data: bytes, flags: NPKEntryDataFlags):
         return 'jpg'
     if data[:4] == b'BKHD':
         return 'bnk'
+    if data[:4] == b'8BPS':
+        return 'psd'
+    if data[:4] == b'NXPK':
+        return 'npk'
+    if data[:4] == b'EXPK':
+        return 'expk'
     if data[:4] == b'TZif':
         return 'tzif'
     if data[6:10] == b'JFIF':
@@ -282,7 +277,7 @@ def get_file_category(extension):
 
     # Textures
     if extension in ["bmp", "gif", "jpg", "jpeg", "png", "pbm", "pgm", "ppm", "xbm",
-                     "xpm", "tga", "ico", "tiff", "dds", "pvr", "astc", "ktx", "ktx_low", "cbk"]:
+                     "xpm", "tga", "ico", "tiff", "dds", "pvr", "astc", "ktx", "ktx_low", "cbk", "psd"]:
         return NPKEntryFileCategories.TEXTURE
 
     # 3D Models

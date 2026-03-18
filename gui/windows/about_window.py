@@ -5,7 +5,7 @@ from PySide6 import QtWidgets, QtGui, QtCore
 from core.build_info import BuildInfo
 
 class LogoWidget(QtWidgets.QWidget):
-    """Custom widget that draws the NeoXtractor IDX logo with perfect text positioning"""
+    """Custom widget that draws the NeoXtractor logo with perfect text positioning"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -95,8 +95,8 @@ class AboutWindow(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("About NeoXtractor IDX")
-        self.setFixedSize(450, 300)
+        self.setWindowTitle("About NeoXtractor-IDXWPK")
+        self.setFixedSize(520, 360)
         self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowType.WindowContextHelpButtonHint)
 
         layout = QtWidgets.QVBoxLayout()
@@ -107,22 +107,27 @@ class AboutWindow(QtWidgets.QDialog):
         logo_widget = LogoWidget()
         app_name_layout.addWidget(logo_widget)
 
+        product_subtitle = QtWidgets.QLabel("NeoXtractor-IDXWPK")
+        product_subtitle.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        product_subtitle.setStyleSheet("font-size: 15px; font-weight: 600;")
+
         # Description
         description = QtWidgets.QLabel(
-            "A tool for extracting data from SKPW IDX+WPK archives."
+            "A tool for extracting, viewing, and decoding resources from NPK, EXPK, IDX/WPK, and related NeoX archive formats."
         )
         description.setWordWrap(True)
         description.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # Copyright info
-        copyright_info = QtWidgets.QLabel("© 2025 MarcosVLl2 & contributors\nNeoX is an game engine developed by Netease. NeoXtractor IDX is not affiliated with Netease.\nThis project is limited for educational purposes.")
+        copyright_info = QtWidgets.QLabel("Based on NeoXtractor by MarcosVLl2 & contributors.\nModified fork with IDX/WPK support.\nNeoX is a game engine developed by NetEase.\nThis project is not affiliated with NetEase.\nFor educational and research purposes only.")
         copyright_info.setWordWrap(True)
         copyright_info.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # Add widgets to main layout
         layout.addSpacing(10)
         layout.addLayout(app_name_layout)
-        layout.addSpacing(10)
+        layout.addWidget(product_subtitle)
+        layout.addSpacing(8)
         layout.addWidget(description)
         layout.addStretch()
 

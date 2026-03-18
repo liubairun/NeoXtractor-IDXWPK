@@ -495,6 +495,9 @@ class CodeEditor(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self._raw_data: bytes | None = None
+        self._current_extension: str | None = None
+
         self.viewer = CodeViewer(self)
         self.viewer.languageChanged.connect(self._on_language_changed)
 
@@ -514,9 +517,27 @@ class CodeEditor(QWidget):
         self.language_selector.setToolTip("Select syntax highlighting language")
         self.language_selector.currentIndexChanged.connect(self._on_language_selected)
 
+        # Encoding selector
+        self.encoding_selector = QComboBox()
+        self.encoding_selector.setToolTip("Select text encoding")
+        self.encoding_selector.currentIndexChanged.connect(self._on_encoding_selected)
+        for label, encoding in [
+            ("UTF-8", "utf-8"),
+            ("UTF-8-SIG", "utf-8-sig"),
+            ("GB18030", "gb18030"),
+            ("GBK", "gbk"),
+            ("Shift-JIS", "shift_jis"),
+            ("UTF-16 LE", "utf-16-le"),
+            ("UTF-16 BE", "utf-16-be"),
+            ("Latin-1", "latin-1"),
+        ]:
+            self.encoding_selector.addItem(label, encoding)
+
         # Add widgets to status bar
         status_layout.addWidget(self.cursor_position_label)
         status_layout.addStretch()
+        status_layout.addWidget(QLabel("Encoding:"))
+        status_layout.addWidget(self.encoding_selector)
         status_layout.addWidget(QLabel("Language:"))
         status_layout.addWidget(self.language_selector)
 
@@ -553,7 +574,14 @@ class CodeEditor(QWidget):
 
     def _on_language_selected(self, index: int):
         """Handle language selection changes."""
-        self.viewer.set_language(self.language_selector.itemData(index))
+        language = self.language_selector.itemData(index)
+        if language:
+            self.viewer.set_language(language)
+
+    def _on_encoding_selected(self, index: int):
+        """Handle encoding selection changes."""
+        if index >= 0:
+            self._apply_decoded_text()
 
     def _on_language_changed(self, language):
         """Handle language changes in the viewer."""
@@ -566,10 +594,70 @@ class CodeEditor(QWidget):
         column = cursor.columnNumber() + 1
         self.cursor_position_label.setText(f"Line: {line}, Column: {column}")
 
+    def _decode_bytes(self, data: bytes, encoding: str) -> str:
+        """Decode raw bytes using the selected encoding."""
+        return data.decode(encoding, errors="replace")
+
+    def _guess_encoding(self, data: bytes) -> str:
+        """Best-effort guess for common encodings used by extracted resources."""
+        candidates = [
+            "utf-8",
+            "utf-8-sig",
+            "gb18030",
+            "gbk",
+            "shift_jis",
+            "utf-16-le",
+            "utf-16-be",
+        ]
+        for encoding in candidates:
+            try:
+                data.decode(encoding)
+                return encoding
+            except UnicodeDecodeError:
+                continue
+        return "latin-1"
+
+    def _set_encoding_combo(self, encoding: str):
+        """Select an encoding in the combo box if it exists."""
+        index = self.encoding_selector.findData(encoding)
+        if index >= 0:
+            self.encoding_selector.setCurrentIndex(index)
+
+    def _apply_decoded_text(self):
+        """Render the current raw bytes using the selected encoding."""
+        if self._raw_data is None:
+            self.viewer.setPlainText("")
+            return
+
+        encoding = self.encoding_selector.currentData() or "utf-8"
+        self.viewer.setPlainText(self._decode_bytes(self._raw_data, encoding))
+
+    def set_bytes(self, data: bytes | None, extension: str | None = None):
+        """Set raw bytes for the editor and decode them using the selected encoding."""
+        self._raw_data = data
+        self._current_extension = extension
+
+        if extension:
+            self.viewer.set_language(self._ext_lang_map.get(extension, "text"))
+        else:
+            self.viewer.set_language("text")
+
+        if data is None:
+            self.viewer.setPlainText("")
+            return
+
+        guessed_encoding = self._guess_encoding(data)
+        self._set_encoding_combo(guessed_encoding)
+        self._apply_decoded_text()
+
     def set_content(self, content: str, extension: str | None = None):
         """Set the content of the code editor."""
         if extension:
             self.viewer.set_language(self._ext_lang_map.get(extension, "text"))
         else:
             self.viewer.set_language("text")
+
+        self._raw_data = content.encode("utf-8", errors="replace")
+        self._current_extension = extension
+        self._set_encoding_combo("utf-8")
         self.viewer.setPlainText(content)

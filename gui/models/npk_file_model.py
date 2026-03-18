@@ -5,7 +5,6 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from core.config import Config
 from core.npk.class_types import NPKEntryDataFlags
-from core.npk.npk_file import NPKFile
 from core.utils import get_filename_in_config
 
 class NPKFileModel(QtCore.QAbstractListModel):
@@ -15,7 +14,7 @@ class NPKFileModel(QtCore.QAbstractListModel):
 
     _file_names_cache: dict[int, str] = {}
 
-    def __init__(self, npk_file: NPKFile, parent: QtCore.QObject | None = None):
+    def __init__(self, npk_file: Any, parent: QtCore.QObject | None = None):
         super().__init__(parent)
 
         if isinstance(parent, QtWidgets.QWidget):
@@ -63,14 +62,10 @@ class NPKFileModel(QtCore.QAbstractListModel):
 
             return self._file_icon
         if role == QtCore.Qt.ItemDataRole.ForegroundRole:
-            idx_entry = self._npk_file.indices[index.row()]
-            if idx_entry.package_id > 15:
-                return QtGui.QBrush(QtGui.QColor(0, 170, 0))
             if self._npk_file.is_entry_loaded(index.row()):
                 entry = self._npk_file.read_entry(index.row())
-                if entry.data_flags & NPKEntryDataFlags.LOOSE_SOURCE:
+                if getattr(entry, "is_slot_file", False):
                     return QtGui.QBrush(QtGui.QColor(0, 170, 0))
-            return None
         if role == QtCore.Qt.ItemDataRole.UserRole:
             return self._npk_file.indices[index.row()]
         return None

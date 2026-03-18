@@ -7,16 +7,17 @@ from PySide6 import QtCore, QtWidgets, QtGui
 
 from core.config import Config
 from core.logger import get_logger
-from core.archive.enums import NPKEntryFileCategories
-from core.archive.idxwpk_file import IDXWPKFile
-from core.archive.class_types import NPKEntry, NPKEntryDataFlags, NPKReadOptions
+from core.npk.enums import NPKEntryFileCategories
+from core.npk.npk_file import NPKFile
+from core.wpk.wpk_file import IDXWPKFile
+from core.npk.class_types import NPKEntry, NPKEntryDataFlags, NPKReadOptions
 from gui.config_manager import ConfigManager
-from gui.models.archive_file_model import ArchiveFileModel
-from gui.archive_entry_filter import ArchiveEntryFilter
+from gui.models.npk_file_model import NPKFileModel
+from gui.npk_entry_filter import NPKEntryFilter
 from gui.settings_manager import SettingsManager
 from gui.utils.config import save_config_manager_to_settings
 from gui.utils.viewer import ALL_VIEWERS, find_best_viewer, get_viewer_display_name
-from gui.widgets.archive_file_list import ArchiveFileList
+from gui.widgets.npk_file_list import NPKFileList
 from gui.widgets.preview_widget import PreviewWidget
 from gui.windows.about_window import AboutWindow
 from gui.windows.config_manager import ConfigManagerWindow
@@ -47,7 +48,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_model_signal.connect(self._update_model)
         self.loading_complete_signal.connect(self._loading_complete)
 
-        self.setWindowTitle("NeoXtractor IDX")
+        self.setWindowTitle("NeoXtractor-IDXWPK")
 
         self.config: Config | None = None
 
@@ -72,7 +73,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.control_layout.addLayout(self.config_section)
 
-        self.list_widget = ArchiveFileList(self)
+        self.list_widget = NPKFileList(self)
         self.list_widget.preview_entry.connect(lambda _row, entry: self.preview_widget.set_file(entry))
         def open_tab_window_for_entry(_row: int, entry: NPKEntry, viewer: type | None = None):
             if viewer is None:
@@ -83,7 +84,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.list_widget.open_entry.connect(open_tab_window_for_entry)
         self.list_widget.open_entry_with.connect(open_tab_window_for_entry)
 
-        self.filter = ArchiveEntryFilter(self.list_widget)
+        self.filter = NPKEntryFilter(self.list_widget)
 
         self.filter_section = QtWidgets.QVBoxLayout()
 
@@ -100,6 +101,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.filter_section.addWidget(self.name_filter_input)
 
         self.filter_checkbox_section = QtWidgets.QGridLayout()
+        self.filter_checkbox_section.setContentsMargins(0, 0, 0, 0)
+        self.filter_checkbox_section.setHorizontalSpacing(12)
+        self.filter_checkbox_section.setVerticalSpacing(6)
 
         self.filter_binary_filter = QtWidgets.QCheckBox("Binary Files")
         self.filter_binary_filter.setChecked(True)
@@ -116,6 +120,14 @@ class MainWindow(QtWidgets.QMainWindow):
             self.filter.apply_filter()
         self.filter_text_filter.toggled.connect(filter_text_filter_changed)
         self.filter_checkbox_section.addWidget(self.filter_text_filter, 0, 1)
+
+        self.filter_slot_filter = QtWidgets.QCheckBox("Slot Files")
+        self.filter_slot_filter.setChecked(True)
+        def filter_slot_filter_changed(checked: bool):
+            self.filter.include_slot = checked
+            self.filter.apply_filter()
+        self.filter_slot_filter.toggled.connect(filter_slot_filter_changed)
+        self.filter_checkbox_section.addWidget(self.filter_slot_filter, 0, 2)
 
         self.filter_section.addLayout(self.filter_checkbox_section)
 
@@ -147,7 +159,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.control_layout.addWidget(self.progress_bar)
 
         self.cancel_button = QtWidgets.QPushButton("Cancel")
-        self.cancel_button.setStatusTip("Cancel loading the archive.")
+        self.cancel_button.setStatusTip("Cancel loading the archive file.")
         self.cancel_button.setVisible(False)
         def cancel_loading():
             self._loading_cancelled = True
@@ -198,7 +210,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.central_widget)
 
         self.open_file_action: QtGui.QAction
-        self.close_archive_action: QtGui.QAction
+        self.unload_npk_action: QtGui.QAction
 
         def file_menu() -> QtWidgets.QMenu:
             menu = QtWidgets.QMenu(title="File")
@@ -208,7 +220,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 "Open File",
                 self
             )
-            open_file.setStatusTip("Open an IDX file.")
+            open_file.setStatusTip("Open a supported archive file.")
             open_file.setShortcut("Ctrl+O")
             menu.addAction(open_file)
 
@@ -222,9 +234,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     return
                 file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
                     self,
-                    "Open IDX File",
+                    "Open Archive File",
                     "",
-                    "IDX Files (*.idx);;All Files (*)"
+                    "Supported Files (*.npk *.expk *.idx *.wpk);;NPK Files (*.npk *.expk);;IDX Files (*.idx);;WPK Files (*.wpk);;All Files (*)"
                 )
                 if file_path:
                     self.load_archive(file_path)
@@ -232,18 +244,17 @@ class MainWindow(QtWidgets.QMainWindow):
             open_file.triggered.connect(open_file_dialog)
             self.open_file_action = open_file
 
-            close_archive = QtGui.QAction(
+            unload_npk = QtGui.QAction(
                 self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogCancelButton),
                 "Unload Archive",
                 self
             )
-            close_archive.setStatusTip("Close the current archive.")
-            close_archive.setShortcut("Ctrl+W")
-            close_archive.setEnabled(False)  # Initially disabled
-            close_archive.triggered.connect(self.close_archive)
-            menu.addAction(close_archive)
-            self.close_archive_action = close_archive
-            self.unload_npk_action = close_archive
+            unload_npk.setStatusTip("Unload the current archive file.")
+            unload_npk.setShortcut("Ctrl+W")
+            unload_npk.setEnabled(False)  # Initially disabled
+            unload_npk.triggered.connect(self.unload_npk)
+            menu.addAction(unload_npk)
+            self.unload_npk_action = unload_npk
 
             menu.addSeparator()
 
@@ -326,22 +337,19 @@ class MainWindow(QtWidgets.QMainWindow):
                     event.ignore()
                     return
 
-    def close_archive(self):
-        """Close the current archive."""
+    def unload_npk(self):
+        """Unload the Archive file."""
 
-        if self.app.property("archive_file") is None:
+        if self.app.property("npk_file") is None:
             return
 
-        self.setWindowTitle("NeoXtractor IDX")
-        archive = self.app.property("archive_file")
-        if archive is not None and hasattr(archive, "close"):
-            archive.close()
-        self.app.setProperty("archive_file", None)
-        self.list_widget.refresh_archive_file()
+        self.setWindowTitle("NeoXtractor-IDXWPK")
+        self.app.setProperty("npk_file", None)
+        self.list_widget.refresh_npk_file()
         self.extract_button_widget.setVisible(False)
         self.preview_widget.clear()
-        self.close_archive_action.setEnabled(False)
-        get_logger().info("Archive unloaded.")
+        self.unload_npk_action.setEnabled(False)
+        get_logger().info("Archive file unloaded.")
 
     def refresh_config_list(self):
         """Refresh the config list from the config manager."""
@@ -374,11 +382,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.config = self.config_manager.configs[index]
 
         if previous_config != self.config:
-            if previous_config is not None and self.app.property("archive_file") is not None and \
+            if previous_config is not None and self.app.property("npk_file") is not None and \
                 QtWidgets.QMessageBox.warning(
                     self,
-                    "Archive loaded",
-                    "Changing the config will unload the current archive.\n" +
+                    "Archive File loaded",
+                    "Changing the config will unload the Archive file.\n" +
                     "Are you sure you want to continue?",
                     buttons=QtWidgets.QMessageBox.StandardButton.Ok | QtWidgets.QMessageBox.StandardButton.Cancel,
                     defaultButton=QtWidgets.QMessageBox.StandardButton.Cancel,
@@ -388,26 +396,26 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.active_config.setCurrentIndex(self.active_config.findText(previous_config.name))
                 return
 
-            self.close_archive()
+            self.unload_npk()
 
             self.app.setProperty("game_config", self.config)
 
             get_logger().info("Config changed to: %s", self.config.name if self.config else "None")
 
     def load_archive(self, path: str):
-        """Load an IDX/WPK archive and populate the list widget."""
+        """Load a supported archive file and populate the list widget."""
 
-        self.close_archive()
+        self.unload_npk()
 
         self._loading_cancelled = False
 
-        self.setWindowTitle(f"NeoXtractor IDX - {os.path.basename(path)}")
+        self.setWindowTitle(f"NeoXtractor-IDXWPK - {os.path.basename(path)}")
 
         self.open_file_action.setEnabled(False)
         self.active_config.setEnabled(False)
         self.progress_bar.setVisible(True)
 
-        self.progress_bar.setFormat("Reading IDX file...")
+        self.progress_bar.setFormat("Reading archive file...")
         self.progress_bar.setRange(0, 0)
 
         self.list_widget.setDisabled(True)
@@ -417,30 +425,39 @@ class MainWindow(QtWidgets.QMainWindow):
             # No read options set, use default
             read_options = NPKReadOptions()
 
-        archive_file = IDXWPKFile(path, read_options)
+        ext = os.path.splitext(path)[1].lower()
+        if ext in (".npk", ".expk"):
+            archive_file = NPKFile(path, read_options)
+        elif ext in (".idx", ".wpk"):
+            archive_file = IDXWPKFile(path, read_options)
+        else:
+            raise ValueError(f"Unsupported archive type: {path}")
 
-        self.app.setProperty("archive_file", archive_file)
+        self.app.setProperty("npk_file", archive_file)
 
-        self.list_widget.refresh_archive_file()
+        self.list_widget.refresh_npk_file()
 
-        self.progress_bar.setFormat(
-            f"Loading entries... (%v/%m)  valid={archive_file.valid_file_count} invalid={archive_file.error_file_count}"
-        )
-        self.progress_bar.setRange(0, archive_file.valid_file_count)
+        self.progress_bar.setFormat("Loading entries... (%v/%m)")
+        self.progress_bar.setRange(0, archive_file.file_count)
         self.progress_bar.setValue(0)
 
         def _load_entries():
-            for visible_row, real_index in enumerate(archive_file.visible_indices):
+            for i in range(archive_file.file_count):
                 if self._loading_cancelled:
                     break
-                archive_file.read_entry(real_index)
-                self.update_model_signal.emit(real_index)
-                self.update_progress_signal.emit(visible_row + 1)
+                archive_file.read_entry(i)
+                self.update_model_signal.emit(i)
+                self.update_progress_signal.emit(i + 1)
             self.loading_complete_signal.emit()
 
         QtCore.QThreadPool.globalInstance().start(_load_entries)
 
         self.cancel_button.setVisible(True)
+
+
+    def load_npk(self, path):
+        """Compatibility wrapper for older call sites."""
+        self.load_archive(path)
 
     def _update_progress(self, value):
         """Update progress bar value from the signal."""
@@ -448,11 +465,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _update_model(self, index):
         """Update model from the signal."""
-        model = cast(ArchiveFileModel, self.list_widget.model())
-        visible_row = model._archive_file.get_visible_row(index)
-        if visible_row < 0:
-            return
-        idx = model.index(visible_row)
+        model = cast(NPKFileModel, self.list_widget.model())
+        idx = model.index(index)
         model.get_filename(idx, invalidate_cache=True)
         self.list_widget.update(idx)
 
@@ -465,14 +479,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.progress_bar.setVisible(False)
         self.cancel_button.setVisible(False)
         self.extract_button_widget.setVisible(True)
-        self.close_archive_action.setEnabled(True)
+        self.unload_npk_action.setEnabled(True)
         if self._loading_cancelled:
-            self.close_archive()
+            self.unload_npk()
         else:
             # This causes all the entries to be read. Making the cancelling not working and stuck the thread.
             self.filter.apply_filter()
-
-
-# Backward-compatible aliases
-MainWindow.load_npk = MainWindow.load_archive
-MainWindow.unload_npk = MainWindow.close_archive

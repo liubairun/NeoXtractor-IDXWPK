@@ -42,8 +42,8 @@ class ImageDecodeTask(QtCore.QRunnable):
                     cast(Image.Image | ImageFile.ImageFile,convert_image(self.data, self.extension)))
                     )
             except Exception as e:
-                self.signals.load_failed.emit(str(e))
-                raise e
+                self.signals.load_failed.emit(e)
+                return
 
         if self.cancelled:
             return
@@ -59,7 +59,7 @@ class TextureViewer(QtWidgets.QWidget):
 
     # Viewer attributes
     name = "Texture Viewer"
-    accepted_extensions = QT_SUPPORTED_FORMATS + ["dds", "pvr", "ktx", "ktx_low", "astc", "cbk"]
+    accepted_extensions = list(dict.fromkeys(QT_SUPPORTED_FORMATS + ["dds", "pvr", "ktx", "ktx_low", "astc", "cbk", "psd"]))
     setup_tab_window = setup_texture_viewer_tab_window
 
     def __init__(self):

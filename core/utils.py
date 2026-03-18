@@ -4,7 +4,7 @@ import os
 import sys
 
 from core.config import Config
-from core.archive.idxwpk_file import IDXWPKFile, NPKFile
+from typing import Any
 
 def get_application_path():
     """
@@ -20,13 +20,13 @@ def get_application_path():
 
     return application_path
 
-def get_filename_in_config(config: Config, index: int, file: IDXWPKFile) -> str:
+def get_filename_in_config(config: Config, index: int, file: Any) -> str:
     """
     Get the filename for a given index in the config.
     
     :param config: The game config.
     :param index: The index of the file.
-    :param file: The archive.
+    :param file: The NPK file.
     :return: The filename.
     """
     entry_index = file.indices[index]

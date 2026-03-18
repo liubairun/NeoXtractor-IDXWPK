@@ -1,16 +1,7 @@
-.venv
-.idea
-
+__pycache__/
 *.pyc
-*__pycache__
-
-# Pyinstaller Build Results
-/build
-/dist
-
-/out/
-
-# User Preferences
+.venv/
+build/
+dist/
+out/
 settings.json
-*.bnk
-*.npk

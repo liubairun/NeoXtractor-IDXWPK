@@ -1,7 +1,7 @@
 [project]
 name = "neoxtractor-idxwpk"
 version = "0.1.0"
-description = "NeoX SKPW IDX+WPK extraction and viewer tool"
+description = "NeoXtractor-IDXWPK: extraction, viewing, and decoding tool for NeoX archive formats"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

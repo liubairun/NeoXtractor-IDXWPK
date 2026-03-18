@@ -3,7 +3,7 @@
 from typing import cast
 from PySide6 import QtWidgets, QtCore
 
-from core.archive.class_types import NPKEntry, NPKEntryDataFlags
+from core.npk.class_types import NPKEntry, NPKEntryDataFlags
 from core.utils import format_bytes
 from gui.utils.viewer import ALL_VIEWERS, find_best_viewer, get_viewer_display_name, set_entry_for_viewer
 
@@ -11,7 +11,7 @@ SELECT_ENTRY_TEXT = "Select an entry to preview."
 
 class PreviewWidget(QtWidgets.QWidget):
     """
-    A widget that provides a preview of the selected file in the archive list.
+    A widget that provides a preview of the selected file in the NPK file list.
     """
 
     _current_entry: NPKEntry | None = None
@@ -73,7 +73,7 @@ class PreviewWidget(QtWidgets.QWidget):
         Set the data for the previewer. When errors occur, hide the previewer and show an error message.
         
         :param previewer: The previewer to set the data for.
-        :param data: The archive entry data to set.
+        :param data: The NPK entry data to set.
         """
         try:
             set_entry_for_viewer(previewer, data)
@@ -118,7 +118,7 @@ class PreviewWidget(QtWidgets.QWidget):
         """
         Set the file to be previewed and select the appropriate previewer.
         
-        :param npk_entry: The archive entry to preview.
+        :param npk_entry: The NPK entry to preview.
         """
         self.clear()
 
@@ -129,7 +129,7 @@ class PreviewWidget(QtWidgets.QWidget):
 
         self.set_control_bar_visible(True)
 
-        # Find the best previewer for the given archive entry
+        # Find the best previewer for the given NPK entry
         best_previewer = find_best_viewer(npk_entry.extension, bool(npk_entry.data_flags & NPKEntryDataFlags.TEXT))
         for previewer in self._previewers:
             if isinstance(previewer, best_previewer):

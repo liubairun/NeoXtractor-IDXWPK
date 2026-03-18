@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout,
                               QPushButton, QHBoxLayout, QLabel)
 
 from core.config import Config
-from core.archive.class_types import NPKReadOptions
+from core.npk.class_types import NPKReadOptions
 
 class EditConfigDialog(QDialog):
     """Dialog for editing an existing game configuration."""
@@ -42,7 +42,7 @@ class EditConfigDialog(QDialog):
             self.info_size_edit.setValue(0)
         else:
             self.info_size_edit.setValue(config.read_options.info_size)
-        self.form_layout.addRow("Reserved Value (currently unused):", self.info_size_edit)
+        self.form_layout.addRow("Info Size (0 for auto determine):", self.info_size_edit)
 
         # Decryption key field
         self.key_edit = QSpinBox()
@@ -52,7 +52,7 @@ class EditConfigDialog(QDialog):
             self.key_edit.setValue(0)
         else:
             self.key_edit.setValue(config.read_options.decryption_key)
-        self.form_layout.addRow("Legacy Key Field (currently unused):", self.key_edit)
+        self.form_layout.addRow("Decryption Key (Use 0 for no key):", self.key_edit)
 
         # Entry signature name map section
         map_label = QLabel("Entry Signature Name Map:")
