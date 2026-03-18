@@ -39,7 +39,7 @@ Some archive variants and decoding paths are still sample-dependent.
 
 This project is based on the original **NeoXtractor** by **MarcosVLl2** and contributors.
 
-Many thanks to the original author for open-sourcing the foundation of this tool.
+Special thanks to the original author [@MarcosVLl2](https://github.com/MarcosVLl2) for the original NeoXtractor project.
 
 ## Disclaimer
 
