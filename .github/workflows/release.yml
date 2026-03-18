@@ -2,54 +2,53 @@ name: Build and Release
 
 on:
   release:
-    types: [ created ]
+    types: [created]
+  workflow_dispatch:
 
 jobs:
   build:
     uses: ./.github/workflows/build.yml
-    
+
   upload-to-release:
     needs: build
     runs-on: ubuntu-latest
+
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          
+
       - name: Prepare artifacts for release
         shell: bash
         run: |
           mkdir -p releases
-          
-          # Find all platform directories in artifacts folder
+
           find artifacts -mindepth 1 -maxdepth 1 -type d | while read platform_path; do
             platform=$(basename "$platform_path")
             echo "Processing platform: $platform"
-            
-            # For Windows, use zip (symlinks not relevant)
+
             if [[ "$platform" == *"windows"* ]]; then
               echo "Creating zip archive for $platform"
               cd "$platform_path"
-              zip -r "../../releases/$platform.zip" *
-              cd ../../
+              zip -r "../../releases/$platform.zip" .
+              cd - >/dev/null
             else
-              # For non-Windows, use the pre-built tar.gz that preserves symlinks
               echo "Using pre-built tar.gz archive for $platform"
-              if [ -f "$platform_path"/*.tar.gz ]; then
-                mv "$platform_path"/*.tar.gz "releases/$platform.tar.gz"
+              if compgen -G "$platform_path/*.tar.gz" > /dev/null; then
+                mv "$platform_path"/*.tar.gz "releases/"
               else
                 echo "Warning: No tar.gz found for $platform, falling back to creating one"
                 cd "$platform_path"
-                tar -czf "../../releases/$platform.tar.gz" *
-                cd ../../
+                tar -czf "../../releases/$platform.tar.gz" .
+                cd - >/dev/null
               fi
             fi
           done
-          
+
           echo "Created archives:"
           ls -la releases/
-          
+
       - name: Upload artifacts to release
         uses: softprops/action-gh-release@v1
         with:

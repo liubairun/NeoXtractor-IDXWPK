@@ -2,10 +2,11 @@ name: CI Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  pull_request:
 
 jobs:
   build:
     uses: ./.github/workflows/build.yml
     with:
-      asset_suffix: '-edge'
+      asset_suffix: "-edge"
