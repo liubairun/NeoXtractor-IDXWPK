@@ -18,18 +18,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            arch: x64
-            asset_name: NeoXtractor-IDXWPK-linux
           - os: windows-latest
             arch: x64
             asset_name: NeoXtractor-IDXWPK-windows
-          - os: macos-latest
-            arch: x64
-            asset_name: NeoXtractor-IDXWPK-macos-x64
-          - os: macos-latest
-            arch: arm64
-            asset_name: NeoXtractor-IDXWPK-macos-arm64
 
     steps:
       - name: Checkout code
@@ -45,20 +36,6 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           version: "0.7.4"
-
-      - name: Set compiler flags for apple-m1
-        if: matrix.os == 'macos-latest' && matrix.arch == 'arm64'
-        shell: bash
-        run: |
-          echo "CFLAGS=-march=armv8-a" >> "$GITHUB_ENV"
-          echo "CXXFLAGS=-march=armv8-a" >> "$GITHUB_ENV"
-
-      - name: Set compiler flags for apple-x64
-        if: matrix.os == 'macos-latest' && matrix.arch == 'x64'
-        shell: bash
-        run: |
-          echo "CFLAGS=-march=x86-64" >> "$GITHUB_ENV"
-          echo "CXXFLAGS=-march=x86-64" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         shell: bash
