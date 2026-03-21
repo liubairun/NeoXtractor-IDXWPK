@@ -11,6 +11,7 @@ from core.binary_readers import read_uint32, read_uint16, read_uint64
 from core.npk.decompression import check_lz4_like, check_nxs3, decompress_entry, unpack_lz4_like, unpack_nxs3, check_rotor, unpack_rotor, strip_none_wrapper
 from core.npk.decryption import decrypt_entry
 from core.npk.enums import NPKFileType
+from core.formats import process_entry_with_processors
 from core.logger import get_logger
 
 from .detection import get_ext, get_file_category, is_binary
@@ -317,12 +318,18 @@ class NPKFile:
             break
 
         binary = is_binary(entry.data)
-        # Mark the data as text data
         if not binary:
             entry.data_flags |= NPKEntryDataFlags.TEXT
 
-        # Detect file extension
-        entry.extension = get_ext(entry.data, entry.data_flags)
+        entry.source_extension = get_ext(entry.data, entry.data_flags)
+        processed = process_entry_with_processors(entry)
+        if processed and not is_binary(entry.data):
+            entry.data_flags |= NPKEntryDataFlags.TEXT
+
+        if not entry.extension:
+            entry.extension = get_ext(entry.data, entry.data_flags)
+        else:
+            entry.extension = entry.extension or get_ext(entry.data, entry.data_flags)
 
         entry.category = get_file_category(entry.extension)
 
