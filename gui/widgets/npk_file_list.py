@@ -150,7 +150,11 @@ class NPKFileList(QtWidgets.QListView):
 
         # Add extract option for any selection
         extract = menu.addAction("Extract")
-        extract.triggered.connect(lambda: self.extract_entries(indexes))
+        extract.triggered.connect(lambda: self.extract_entries(indexes, decoded=True))
+
+        if self._selection_has_decoded_entries(indexes):
+            extract_raw = menu.addAction("Extract Raw")
+            extract_raw.triggered.connect(lambda: self.extract_entries(indexes, decoded=False))
 
         menu.addSeparator()
         for viewer in ALL_VIEWERS:
@@ -182,7 +186,17 @@ class NPKFileList(QtWidgets.QListView):
             entry = npk_file.read_entry(row)
             self.open_entry_with.emit(row, entry, viewer)
 
-    def extract_entries(self, indexes: list[QtCore.QModelIndex]):
+    def _selection_has_decoded_entries(self, indexes: list[QtCore.QModelIndex]) -> bool:
+        npk_file = get_npk_file()
+        if npk_file is None:
+            return False
+        for index in indexes:
+            entry = npk_file.read_entry(index.row())
+            if getattr(entry, "has_decoded_view", False):
+                return True
+        return False
+
+    def extract_entries(self, indexes: list[QtCore.QModelIndex], decoded: bool = True):
         """
         Extract selected entries from the NPK file.
         
@@ -198,7 +212,7 @@ class NPKFileList(QtWidgets.QListView):
             row_index = index.row()
             # Get the entry data first so the detected extension is reflected in the filename.
             entry = npk_file.read_entry(row_index)
-            filename = os.path.basename(entry.filename) or self.model().get_filename(index)
+            filename = os.path.basename(entry.get_export_filename(decoded=decoded)) or self.model().get_filename(index)
 
             # Show save file dialog
             file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -211,7 +225,7 @@ class NPKFileList(QtWidgets.QListView):
             if file_path:
                 try:
                     with open(file_path, 'wb') as f:
-                        f.write(entry.data)
+                        f.write(entry.get_export_data(decoded=decoded))
                     QtWidgets.QMessageBox.information(
                         self,
                         "Success", 
@@ -242,7 +256,7 @@ class NPKFileList(QtWidgets.QListView):
 
                         # Get the entry data first so the detected extension is reflected in the filename.
                         entry = npk_file.read_entry(row_index)
-                        filename = os.path.basename(entry.filename) or self.model().get_filename(index)
+                        filename = os.path.basename(entry.get_export_filename(decoded=decoded)) or self.model().get_filename(index)
 
                         # Create safe filename
                         safe_filename = os.path.basename(filename)
@@ -254,7 +268,7 @@ class NPKFileList(QtWidgets.QListView):
 
                         try:
                             with open(file_path, 'wb') as f:
-                                f.write(entry.data)
+                                f.write(entry.get_export_data(decoded=decoded))
                             success_count += 1
                         except Exception:
                             fail_count += 1

@@ -57,6 +57,11 @@ class NPKEntry(NPKIndex):
         self.data: bytes = b""
         self.extension: str = ""
         self.category: NPKEntryFileCategories = NPKEntryFileCategories.OTHER
+        self.source_data: bytes | None = None
+        self.source_extension: str = ""
+        self.processed_by: str | None = None
+        self.has_decoded_view: bool = False
+        self.format_metadata: dict = {}
 
     @property
     def is_compressed(self) -> bool:
@@ -72,11 +77,37 @@ class NPKEntry(NPKIndex):
         """Get the file data."""
         return self.data
 
-    def save_to_file(self, path: str) -> None:
+    def save_to_file(self, path: str, decoded: bool = True) -> None:
         """Save the file data to the specified path."""
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        dir_name = os.path.dirname(path)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
         with open(path, 'wb') as f:
-            f.write(self.data)
+            f.write(self.get_export_data(decoded=decoded))
+
+    def get_export_data(self, decoded: bool = True) -> bytes:
+        """Return decoded data by default, or the original source bytes when available."""
+        if decoded or not self.has_decoded_view or self.source_data is None:
+            return self.data
+        return self.source_data
+
+    def get_export_filename(self, decoded: bool = True) -> str:
+        """Return a filename that matches the chosen export payload."""
+        filename = self.filename
+        base_name, existing_ext = os.path.splitext(filename)
+
+        if decoded:
+            if self.has_decoded_view and self.extension:
+                return f"{base_name}.{self.extension}" if existing_ext else f"{filename}.{self.extension}"
+            return filename
+
+        if not self.has_decoded_view:
+            return filename
+
+        source_ext = self.source_extension or self.extension
+        if existing_ext:
+            return f"{base_name}.{source_ext}" if source_ext else filename
+        return f"{filename}.{source_ext}" if source_ext else filename
 
     def __repr__(self) -> str:
         return (

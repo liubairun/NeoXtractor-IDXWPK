@@ -124,8 +124,10 @@ class PreviewWidget(QtWidgets.QWidget):
 
         self._current_entry = npk_entry
 
-        self.status_label.setText(f"Signature: {hex(npk_entry.file_signature)} | " +
-                                  f"Size: {format_bytes(npk_entry.file_original_length)}")
+        status = f"Signature: {hex(npk_entry.file_signature)} | Size: {format_bytes(npk_entry.file_original_length)}"
+        if npk_entry.processed_by:
+            status += f" | Decoded: {npk_entry.processed_by}"
+        self.status_label.setText(status)
 
         self.set_control_bar_visible(True)
 
