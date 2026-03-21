@@ -48,8 +48,9 @@ def _get_binary_ext(data: bytes, flags: NPKEntryDataFlags):
     if data[:33] == b'NVidia(r) GameWorks Blast(tm) v.1':
         return 'blast'
     if data[:4] == bytes([0xE3, 0x00, 0x00, 0x00]) or \
-         data[:4] == bytes([0x63, 0x00, 0x00, 0x00]) or \
-         data[:4] == bytes([0x4C, 0x0F, 0x00, 0x00]):
+        data[:4] == bytes([0x63, 0x00, 0x00, 0x00]) or \
+        data[:4] == bytes([0xA7, 0x0D, 0x0D, 0x0A]) or \
+        data[:4] == bytes([0x4C, 0x0F, 0x00, 0x00]):
         return 'pyc'
     if data[:12] == b'CocosStudio-UI':
         return 'coc'
