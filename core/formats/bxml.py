@@ -1,4 +1,7 @@
 """NeoX BXML decoder."""
+# Source / attribution:
+# Original script provided by Discord user JohnSmith.
+# Modified and integrated for this project.
 
 from __future__ import annotations
 
